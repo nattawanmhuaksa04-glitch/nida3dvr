@@ -284,7 +284,7 @@ async function validateVideo(file: File): Promise<{ valid: boolean; error?: stri
       // Note: isTypeSupported checks browser capability, not file codec — best effort only
       // We'll do a real check via canPlayType
       const canPlay = video.canPlayType('video/mp4; codecs="avc1.42E01E"');
-      if (canPlay === "no") {
+      if (canPlay === "") {
         cleanup();
         return resolve({ valid: false, error: "Codec not supported. Please use H.264 (AVC)." });
       }
