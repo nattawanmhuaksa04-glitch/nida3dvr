@@ -23,3 +23,12 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# build artifacts
+tsconfig.tsbuildinfo
+
+# local notes
+note.txt
+
+# claude
+.claude/
