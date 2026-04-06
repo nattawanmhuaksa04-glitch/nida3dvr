@@ -1,0 +1,72 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@theme {
+  --color-brand-50:  #fff4ef;
+  --color-brand-100: #ffe1d4;
+  --color-brand-200: #ffc4b0;
+  --color-brand-300: #ff9e88;
+  --color-brand-400: #ff7e70;
+  --color-brand-500: #ff6b62;
+  --color-brand-600: #ff5e62;
+  --color-brand-700: #e84a5a;
+  --color-brand-800: #cc3a50;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background-color: #F8FAFC;
+  color: #0F172A;
+  font-family: 'Inter', system-ui, sans-serif;
+  height: 100%;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* Brand gradient — used on headers and primary surfaces */
+.bg-gradient-brand {
+  background: linear-gradient(to left, #ff5e62, #ff9966);
+}
+
+@layer components {
+  /* Buttons */
+  .btn-primary {
+    @apply text-white font-semibold px-5 py-2.5 rounded-full transition-all duration-200 text-sm flex items-center gap-2 shadow-sm;
+    background: linear-gradient(to left, #ff5e62, #ff9966);
+  }
+  .btn-primary:hover {
+    filter: brightness(0.9);
+  }
+  .btn-secondary {
+    @apply bg-white hover:bg-slate-50 text-slate-700 font-medium px-5 py-2.5 rounded-full transition-colors duration-200 text-sm flex items-center gap-2 border border-slate-200 shadow-sm;
+  }
+  .btn-ghost {
+    @apply hover:bg-slate-100 text-slate-500 hover:text-slate-800 font-medium px-3 py-2 rounded-xl transition-colors duration-200 text-sm flex items-center gap-2;
+  }
+
+  /* Input */
+  .input {
+    @apply bg-white border border-slate-200 text-slate-900 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-600 transition-all placeholder-slate-400;
+  }
+
+  /* Badge */
+  .badge {
+    @apply text-xs font-semibold px-2.5 py-1 rounded-full;
+  }
+}
