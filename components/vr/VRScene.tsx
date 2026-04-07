@@ -259,6 +259,13 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, onExit
         // VR headset looks at -Z (forward), so rotation = -PI/2
         sphere.rotation.y = -Math.PI / 2;
 
+        // Resume video if browser pauses it when entering/exiting VR
+        video.addEventListener("pause", () => { video.play().catch(() => {}); });
+        document.addEventListener("visibilitychange", () => {
+          if (renderer.xr.isPresenting) video.play().catch(() => {});
+        });
+        renderer.xr.addEventListener("sessionstart", () => { video.play().catch(() => {}); });
+
         sphere.onBeforeRender = (_r, _s, cam: import("three").Camera) => {
           const xrCam = cam as import("three").PerspectiveCamera & { viewport?: { x: number } };
 
