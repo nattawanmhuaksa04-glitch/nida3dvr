@@ -101,7 +101,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </div>
 
         {/* Page content */}
-        <div className="flex-1 flex flex-col min-h-0 pb-16 md:pb-0">
+        <div className="flex-1 overflow-y-auto min-h-0 pb-16 md:pb-0">
           {children}
         </div>
 
