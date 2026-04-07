@@ -1,2 +1,17 @@
 cloudflared tunnel --url http://localhost:3000
 http://192.168.1.43:3000
+
+วิธี Cast จาก Quest ไปที่หน้าจอ:
+
+Cast ไปที่โทรศัพท์
+ใส่แว่น Quest
+กดปุ่ม Quest บน controller (ปุ่มกลาง)
+เลือก Share → Cast
+เลือก Phone → โหลด Meta Quest app บนมือถือก่อน
+มือถือจะแสดงหน้าจอ realtime
+
+
+Cast ไปที่ PC Browser
+ขั้นตอนเดิม → เลือก This computer
+เปิด Meta Quest Link app บน PC ก่อน
+หมายเหตุ: Quest, มือถือ, TV ต้องอยู่ WiFi วงเดียวกัน ไม่งั้นจะไม่เห็น device ให้เลือก

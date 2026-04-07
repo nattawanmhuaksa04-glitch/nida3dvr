@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import PresentationCard from "@/components/presentation/PresentationCard";
 import FileUpload from "@/components/presentation/FileUpload";
-import { Upload, FileText, X, RotateCcw, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Upload, FileText, X, RotateCcw, Trash2, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import type { PresentationSession } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -16,6 +16,7 @@ export default function PresentationsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [preview, setPreview] = useState<PresentationSession | null>(null);
   const [previewIdx, setPreviewIdx] = useState(0);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const fetchSessions = useCallback(async () => {
     setLoading(true);
@@ -122,7 +123,14 @@ export default function PresentationsPage() {
               <PresentationCard
                 key={s.id}
                 session={s}
-                onEnterVR={(s) => { setPreview(s); setPreviewIdx(0); }}
+                onEnterVR={async (s) => {
+                setPreviewIdx(0);
+                setPreviewLoading(true);
+                const res = await fetch(`/api/presentation/slides/${s.id}`);
+                const data = res.ok ? await res.json() : {};
+                setPreview({ ...s, slides: data.slides || s.slides });
+                setPreviewLoading(false);
+              }}
                 onDelete={handleDelete}
               />
             ))}
@@ -145,11 +153,14 @@ export default function PresentationsPage() {
             </div>
             {/* Slide */}
             <div className="flex-1 flex items-center justify-center bg-slate-50 p-6 min-h-0">
-              <img
-                src={preview.slides[previewIdx]}
-                alt={`Slide ${previewIdx + 1}`}
-                className="max-w-full max-h-full object-contain rounded-xl shadow"
-              />
+              {previewLoading
+                ? <Loader2 size={32} className="animate-spin text-brand-400" />
+                : <img
+                    src={preview.slides[previewIdx]}
+                    alt={`Slide ${previewIdx + 1}`}
+                    className="max-w-full max-h-full object-contain rounded-xl shadow"
+                  />
+              }
             </div>
             {/* Navigation */}
             <div className="flex items-center justify-center gap-4 px-6 py-4 border-t border-slate-100 shrink-0">

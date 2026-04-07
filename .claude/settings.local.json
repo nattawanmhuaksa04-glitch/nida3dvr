@@ -11,7 +11,8 @@
       "Bash(ipconfig getifaddr:*)",
       "Bash(mv /Users/nattawanmhuaksa/.claude/projects/-Users-nattawanmhuaksa-Library-CloudStorage-OneDrive-T2PCompanyLimited-QA-nida3dvr/memory/project_vr_hub.md /Users/nattawanmhuaksa/.claude/projects/-Users-nattawanmhuaksa-Library-CloudStorage-OneDrive-T2PCompanyLimited-QA-nida3dvr/memory/project_nida3dvr.md)",
       "Bash(grep -E \"\\\\.\\(md|txt|yml|yaml|json|config\\)$\")",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000 --max-time 5)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000 --max-time 5)",
+      "Bash(npx tsc:*)"
     ]
   }
 }
