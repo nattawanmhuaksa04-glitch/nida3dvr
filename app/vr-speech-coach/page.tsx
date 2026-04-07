@@ -257,29 +257,39 @@ export default function VRModePage() {
                 </span>
               )}
             </div>
-            <button
-              onClick={connectHeartRate}
-              className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl border transition-all shrink-0 cursor-pointer ${
+            <div className={`flex items-center shrink-0 rounded-xl border overflow-hidden transition-all ${
                 !hrConnected
-                  ? "bg-white border-slate-200 text-slate-500 hover:border-red-200 hover:text-red-400"
+                  ? "bg-white border-slate-200"
                   : heartRate !== null && heartRate >= 130
-                  ? "bg-red-50 border-red-300 text-red-600"
+                  ? "bg-red-50 border-red-300"
                   : heartRate !== null && heartRate >= 100
-                  ? "bg-yellow-50 border-yellow-300 text-yellow-600"
-                  : "bg-green-50 border-green-300 text-green-600"
-              }`}
-            >
-              <Heart size={12} fill={hrConnected ? "currentColor" : "none"} />
-              {hrConnected && heartRate ? `${heartRate} bpm` : hrConnected ? "Connected" : "HR Monitor"}
-            </button>
-            {hrConnected && (
+                  ? "bg-yellow-50 border-yellow-300"
+                  : "bg-green-50 border-green-300"
+              }`}>
               <button
-                onClick={disconnectHeartRate}
-                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer shrink-0"
+                onClick={connectHeartRate}
+                className={`flex items-center gap-1.5 text-xs px-3 py-2 cursor-pointer transition-colors ${
+                  !hrConnected
+                    ? "text-slate-500 hover:text-red-400"
+                    : heartRate !== null && heartRate >= 130
+                    ? "text-red-600"
+                    : heartRate !== null && heartRate >= 100
+                    ? "text-yellow-600"
+                    : "text-green-600"
+                }`}
               >
-                <X size={12} />
+                <Heart size={12} fill={hrConnected ? "currentColor" : "none"} />
+                {hrConnected && heartRate ? `${heartRate} bpm` : hrConnected ? "Connected" : "HR Monitor"}
               </button>
-            )}
+              {hrConnected && (
+                <button
+                  onClick={disconnectHeartRate}
+                  className="px-2 py-2 border-l border-current/20 text-slate-400 hover:text-slate-600 hover:bg-black/5 transition-colors cursor-pointer"
+                >
+                  <X size={11} />
+                </button>
+              )}
+            </div>
             <button
               onClick={handleEnterVR}
               disabled={!canEnter}
