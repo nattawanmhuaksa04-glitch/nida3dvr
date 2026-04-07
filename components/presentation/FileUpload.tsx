@@ -158,11 +158,11 @@ async function renderPdfToSlides(file: File, onProgress: (p: number) => void): P
   const slides: string[] = [];
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
-    const viewport = page.getViewport({ scale: 1.5 });
+    const viewport = page.getViewport({ scale: 2.5 });
     const canvas = document.createElement("canvas");
     canvas.width = viewport.width; canvas.height = viewport.height;
     await page.render({ canvasContext: canvas.getContext("2d")!, viewport }).promise;
-    slides.push(canvas.toDataURL("image/jpeg", 0.85));
+    slides.push(canvas.toDataURL("image/jpeg", 0.92));
     onProgress(i / pdf.numPages);
   }
   return slides;
