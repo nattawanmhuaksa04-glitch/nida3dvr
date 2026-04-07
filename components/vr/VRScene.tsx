@@ -41,23 +41,18 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, heartR
 
   const updateSlide = useCallback((index: number) => {
     if (!slideMeshRef.current || !slides[index]) return;
-    import("three").then(({ CanvasTexture, MeshBasicMaterial, DoubleSide }) => {
-      const img = new Image();
-      img.onload = () => {
-        const mesh = slideMeshRef.current;
-        if (!mesh) return;
-        const canvas = document.createElement("canvas");
-        canvas.width = img.naturalWidth || img.width;
-        canvas.height = img.naturalHeight || img.height;
-        const ctx = canvas.getContext("2d")!;
-        ctx.drawImage(img, 0, 0);
+    import("three").then(({ TextureLoader, MeshBasicMaterial, DoubleSide }) => {
+      const mesh = slideMeshRef.current;
+      if (!mesh) return;
+      const loader = new TextureLoader();
+      loader.setCrossOrigin("anonymous");
+      loader.load(slides[index], (texture) => {
+        if (!slideMeshRef.current) return;
         const oldMat = mesh.material as import("three").MeshBasicMaterial;
         oldMat.map?.dispose();
         oldMat.dispose();
-        const texture = new CanvasTexture(canvas);
         mesh.material = new MeshBasicMaterial({ map: texture, side: DoubleSide });
-      };
-      img.src = slides[index];
+      });
     });
   }, [slides]);
 
@@ -359,6 +354,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, heartR
       const slideH = visibleH * 0.45;
 
       const loader = new THREE.TextureLoader();
+      loader.setCrossOrigin("anonymous");
       loader.load(slides[0], (texture) => {
         if (cancelled) return;
         // Use actual aspect ratio from image (same as original project)
