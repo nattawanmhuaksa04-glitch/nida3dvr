@@ -20,7 +20,6 @@
   - **Fluency** — ความลื่นไหลในการพูด
   - **Structure** — โครงสร้างการนำเสนอ
   - **Time Management** — การจัดการเวลาต่อสไลด์
-- แชร์ presentation ด้วย **4-digit code** สำหรับโหลดบน Meta Quest
 
 ---
 
@@ -71,9 +70,6 @@ nida3dvr/
 │       │   ├── slides/[id]/     # ดึง slide URLs ของ session
 │       │   ├── transcribe/      # Speech-to-text ด้วย Groq Whisper
 │       │   └── analyze/         # AI วิเคราะห์และให้คะแนน
-│       └── code/
-│           ├── route.ts         # สร้าง short code
-│           └── [code]/          # Lookup session จาก code
 ├── components/
 │   ├── layout/              # MainLayout, Header, Sidebar
 │   ├── auth/                # LoginModal
