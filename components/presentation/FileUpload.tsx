@@ -37,13 +37,32 @@ export default function FileUpload({ onSlidesPrepared }: {
       });
       if (!sessionRes.ok) throw new Error("Failed to create session");
       const { sessionId } = await sessionRes.json();
-      setStatusMsg("Saving slides..."); setProgress(85);
+
+      // Upload each slide to R2 and collect public URLs
+      const slideUrls: string[] = [];
+      for (let i = 0; i < slides.length; i++) {
+        setStatusMsg(`Uploading slide ${i + 1} / ${slides.length}...`);
+        setProgress(75 + Math.round((i / slides.length) * 20));
+        const presignRes = await fetch("/api/upload/presign-slide", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, index: i }),
+        });
+        if (!presignRes.ok) throw new Error("Failed to get upload URL");
+        const { uploadUrl, publicUrl } = await presignRes.json();
+        // Convert base64 dataURL to blob
+        const base64 = slides[i].split(",")[1];
+        const blob = await fetch(`data:image/jpeg;base64,${base64}`).then(r => r.blob());
+        await fetch(uploadUrl, { method: "PUT", body: blob, headers: { "Content-Type": "image/jpeg" } });
+        slideUrls.push(publicUrl);
+      }
+
+      setStatusMsg("Saving slides..."); setProgress(95);
       await fetch("/api/presentation/save-slides", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, slides }),
+        body: JSON.stringify({ sessionId, slides: slideUrls }),
       });
       setProgress(100); setStep("done");
-      onSlidesPrepared(slides, sessionId, effectiveTitle);
+      onSlidesPrepared(slideUrls, sessionId, effectiveTitle);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Processing failed");
       setStep("error");
