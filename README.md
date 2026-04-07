@@ -10,6 +10,7 @@
 - จัดเก็บและแสดงวิดีโอ 360°/180° จาก Cloudflare R2
 - เล่นวิดีโอในโหมด VR ผ่าน WebXR บน Meta Quest หรือ browser
 - ตรวจสอบ spec วิดีโอก่อนอัปโหลด (resolution, SBS, codec, frame rate)
+- Thumbnail ครอปกึ่งกลาง left eye อัตโนมัติ (ไม่ fisheye)
 
 ### Presentation Trainer
 - อัปโหลดไฟล์ PDF แปลงเป็น slides สำหรับนำเสนอใน VR
@@ -112,6 +113,10 @@ nida3dvr/
 - เลือก Presentation + VR Video → กด **Enter VR**
 - เลื่อน slide ด้วย controller (trigger/select)
 - สไลด์สุดท้าย: กด **End** button (3D, อยู่เหนือสไลด์) → ออกจาก VR → วิเคราะห์ AI
+- เชื่อมต่อ **Heart Rate Monitor** ผ่าน Web Bluetooth (Garmin Forerunner 165 หรืออื่นๆ) ก่อนกด Enter VR
+  - แสดง BPM แบบ realtime ใน VR HUD ข้างๆ End button
+  - สีตามโซน: เขียว < 100 / เหลือง 100–129 / แดง ≥ 130 bpm
+  - รองรับบน Meta Browser (Quest Pro/2/3) และ Chrome/Edge บน Mac
 
 ---
 
@@ -173,17 +178,9 @@ npm run dev
 
 ---
 
-## Planned Features
+## VR Projection (180° SBS)
 
-### Heart Rate Monitoring (VR Speech Coach)
-จับอัตราการเต้นของหัวใจระหว่างนำเสนอ แสดงผลใน VR HUD และ ScoreReport
-
-**Hardware**: Apple Watch + iPhone หรือ BLE HR monitor (Polar H10, HeartCast app)
-
-**วิธี iPhone Shortcut (ฟรี)**:
-1. iPhone Shortcut อ่าน HR จาก HealthKit → POST to `/api/heartrate`
-2. Web app poll ทุก 3 วิ → แสดง BPM ใน VR
-
-**วิธี HeartCast (~$2)**:
-1. watchOS app broadcast BLE Heart Rate Service
-2. Web Bluetooth API (Chrome/Quest) จับ BPM ได้ lag <1 วิ
+วิดีโอ SBS (Side-by-Side) 180° ใช้ Three.js `SphereGeometry` แบบ hemisphere:
+- `phiStart = Math.PI/2`, `phiLength = Math.PI` + `scale(-1,1,1)` + `rotation.y = Math.PI` (2D viewer)
+- `rotation.y = -Math.PI/2` สำหรับ VR headset (looking at -Z)
+- `texture.repeat.set(0.5, 1)` + `offset.x` สลับ left/right eye ผ่าน `onBeforeRender`
