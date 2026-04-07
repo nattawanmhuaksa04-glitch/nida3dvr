@@ -198,7 +198,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, onExit
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.xr.enabled = true;
-      renderer.xr.setFramebufferScaleFactor(1.0);
+      renderer.xr.setFramebufferScaleFactor(1.5);
       container.appendChild(renderer.domElement);
       rendererRef.current = renderer;
 
@@ -232,8 +232,11 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, onExit
         video.play().catch(() => { });
 
         const videoTexture = new THREE.VideoTexture(video);
+        videoTexture.colorSpace = THREE.SRGBColorSpace;
         videoTexture.minFilter = THREE.LinearFilter;
         videoTexture.magFilter = THREE.LinearFilter;
+        videoTexture.generateMipmaps = false;
+        videoTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
         videoTexture.wrapS = THREE.ClampToEdgeWrapping;
 
         // Left eye — offset switches to 0.5 for right eye in onBeforeRender
