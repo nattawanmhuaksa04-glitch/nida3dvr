@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import PresentationCard from "@/components/presentation/PresentationCard";
 import FileUpload from "@/components/presentation/FileUpload";
-import { Upload, FileText, X, RotateCcw, Trash2 } from "lucide-react";
+import { Upload, FileText, X, RotateCcw, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import type { PresentationSession } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -14,6 +14,8 @@ export default function PresentationsPage() {
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<PresentationSession | null>(null);
+  const [previewIdx, setPreviewIdx] = useState(0);
 
   const fetchSessions = useCallback(async () => {
     setLoading(true);
@@ -120,13 +122,64 @@ export default function PresentationsPage() {
               <PresentationCard
                 key={s.id}
                 session={s}
-                onEnterVR={() => {}}
+                onEnterVR={(s) => { setPreview(s); setPreviewIdx(0); }}
                 onDelete={handleDelete}
               />
             ))}
           </div>
         )}
       </div>
+
+      {preview && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-6" onClick={() => setPreview(null)}>
+          <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl border border-slate-100 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+              <div>
+                <h2 className="font-bold text-slate-900 text-sm">{preview.title}</h2>
+                <p className="text-xs text-slate-400 mt-0.5">{previewIdx + 1} / {preview.slides.length} slides</p>
+              </div>
+              <button onClick={() => setPreview(null)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-700 transition-colors cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+            {/* Slide */}
+            <div className="flex-1 flex items-center justify-center bg-slate-50 p-6 min-h-0">
+              <img
+                src={preview.slides[previewIdx]}
+                alt={`Slide ${previewIdx + 1}`}
+                className="max-w-full max-h-full object-contain rounded-xl shadow"
+              />
+            </div>
+            {/* Navigation */}
+            <div className="flex items-center justify-center gap-4 px-6 py-4 border-t border-slate-100 shrink-0">
+              <button
+                onClick={() => setPreviewIdx((i) => Math.max(i - 1, 0))}
+                disabled={previewIdx === 0}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-colors cursor-pointer disabled:cursor-default"
+              >
+                <ChevronLeft size={16} /> Prev
+              </button>
+              <div className="flex gap-1.5">
+                {preview.slides.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setPreviewIdx(i)}
+                    className={`w-2 h-2 rounded-full transition-colors cursor-pointer ${i === previewIdx ? "bg-brand-600" : "bg-slate-200 hover:bg-slate-400"}`}
+                  />
+                ))}
+              </div>
+              <button
+                onClick={() => setPreviewIdx((i) => Math.min(i + 1, preview.slides.length - 1))}
+                disabled={previewIdx === preview.slides.length - 1}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-colors cursor-pointer disabled:cursor-default"
+              >
+                Next <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {deleteId && (
         <div className="fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center p-4">
