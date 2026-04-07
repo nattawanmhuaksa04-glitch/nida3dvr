@@ -163,27 +163,29 @@ export default function PresentationsPage() {
               }
             </div>
             {/* Navigation */}
-            <div className="flex items-center justify-center gap-4 px-6 py-4 border-t border-slate-100 shrink-0">
+            <div className="flex items-center justify-between gap-4 px-6 py-4 border-t border-slate-100 shrink-0">
               <button
                 onClick={() => setPreviewIdx((i) => Math.max(i - 1, 0))}
                 disabled={previewIdx === 0}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-colors cursor-pointer disabled:cursor-default"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-colors cursor-pointer disabled:cursor-default shrink-0"
               >
                 <ChevronLeft size={16} /> Prev
               </button>
-              <div className="flex gap-1.5">
-                {preview.slides.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setPreviewIdx(i)}
-                    className={`w-2 h-2 rounded-full transition-colors cursor-pointer ${i === previewIdx ? "bg-brand-600" : "bg-slate-200 hover:bg-slate-400"}`}
-                  />
-                ))}
+              <div className="flex gap-1 items-center">
+                {Array.from({ length: preview.slides.length }, (_, i) => i)
+                  .filter(i => Math.abs(i - previewIdx) <= 3)
+                  .map(i => (
+                    <button
+                      key={i}
+                      onClick={() => setPreviewIdx(i)}
+                      className={`rounded-full transition-all cursor-pointer ${i === previewIdx ? "w-2.5 h-2.5 bg-brand-600" : "w-1.5 h-1.5 bg-slate-300 hover:bg-slate-400"}`}
+                    />
+                  ))}
               </div>
               <button
                 onClick={() => setPreviewIdx((i) => Math.min(i + 1, preview.slides.length - 1))}
                 disabled={previewIdx === preview.slides.length - 1}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-colors cursor-pointer disabled:cursor-default"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-colors cursor-pointer disabled:cursor-default shrink-0"
               >
                 Next <ChevronRight size={16} />
               </button>
