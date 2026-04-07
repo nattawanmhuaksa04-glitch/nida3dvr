@@ -198,7 +198,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, onExit
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.xr.enabled = true;
-      renderer.xr.setFramebufferScaleFactor(1.5);
+      renderer.xr.setFramebufferScaleFactor(1.0);
       container.appendChild(renderer.domElement);
       rendererRef.current = renderer;
 
