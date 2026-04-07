@@ -89,7 +89,7 @@ export default function VideoPlayer180({ src }: { src: string }) {
     wrap.appendChild(canvas);
     rendererRef.current = renderer;
 
-    const camera = new THREE.PerspectiveCamera(80, w / h, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 1000);
     camera.position.set(0, 0, 0.01);
     cameraRef.current = camera;
 
@@ -99,17 +99,17 @@ export default function VideoPlayer180({ src }: { src: string }) {
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.wrapS      = THREE.ClampToEdgeWrapping;
     texture.wrapT      = THREE.ClampToEdgeWrapping;
-    texture.repeat.set(-0.5, 1);
-    texture.offset.set(0.5, 0);
+    texture.repeat.set(0.5, 1);
+    texture.offset.set(0, 0);
 
-    const geometry = new THREE.SphereGeometry(500, 64, 32);
+    const geometry = new THREE.SphereGeometry(500, 64, 32, Math.PI / 2, Math.PI);
     geometry.scale(-1, 1, 1);
     const material = new THREE.MeshBasicMaterial({ map: texture });
     const sphere   = new THREE.Mesh(geometry, material);
     sphere.rotation.y = Math.PI;
     scene.add(sphere);
 
-    let dragging = false, prevX = 0, prevY = 0, lon = 0, lat = 0;
+    let dragging = false, prevX = 0, prevY = 0, lon = 0, lat = -25;
 
     const onDown = (e: PointerEvent) => {
       dragging = true; prevX = e.clientX; prevY = e.clientY;

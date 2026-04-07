@@ -337,11 +337,16 @@ async function generateThumbnail(file: File): Promise<{ blob: Blob; duration: nu
       const duration = isFinite(video.duration) ? video.duration : 0;
       const canvas = document.createElement("canvas");
       canvas.width = 640; canvas.height = 360;
-      // Crop left eye only (SBS format: left half = left eye)
+      // Crop center 50% of left eye — avoids fisheye edges, looks like normal photo
+      const eyeW = video.videoWidth / 2;
+      const cropW = eyeW * 0.5;
+      const cropH = video.videoHeight * 0.5;
+      const srcX = eyeW * 0.25;
+      const srcY = video.videoHeight * 0.25;
       canvas.getContext("2d")!.drawImage(
         video,
-        0, 0, video.videoWidth / 2, video.videoHeight, // source: left half
-        0, 0, 640, 360                                  // dest: full canvas
+        srcX, srcY, cropW, cropH,   // source: center of left eye
+        0, 0, 640, 360              // dest: full canvas
       );
       URL.revokeObjectURL(video.src);
       canvas.toBlob(

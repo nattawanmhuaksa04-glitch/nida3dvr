@@ -36,7 +36,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, onExit
   const audioChunksRef = useRef<Blob[]>([]);
   const startTimeRef = useRef<number>(Date.now());
   const isEndingRef = useRef(false);
-  const endPresentationRef = useRef<() => void>(() => {});
+  const endPresentationRef = useRef<() => void>(() => { });
 
   const updateSlide = useCallback((index: number) => {
     if (!slideMeshRef.current || !slides[index]) return;
@@ -121,7 +121,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, onExit
     // Exit VR session first so HTML overlay is visible
     try {
       await rendererRef.current?.xr.getSession()?.end();
-    } catch {}
+    } catch { }
 
     setAnalyzing(true);
     const duration = Math.floor((Date.now() - startTimeRef.current) / 1000);
@@ -146,7 +146,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, onExit
         const data = await res.json();
         score = data.score;
       }
-    } catch {}
+    } catch { }
 
     setAnalyzing(false);
     if (rendererRef.current) {
@@ -221,7 +221,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, onExit
       dirLight.position.set(0, 5, 5);
       scene.add(dirLight);
 
-      // 180° video background
+      // 180° video background (Corrected for Canon VR180 SBS)
       if (videoUrl) {
         const video = document.createElement("video");
         video.src = videoUrl;
@@ -229,29 +229,46 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, onExit
         video.muted = true;
         video.playsInline = true;
         video.crossOrigin = "anonymous";
-        video.play().catch(() => {});
+        video.play().catch(() => { });
 
         const videoTexture = new THREE.VideoTexture(video);
         videoTexture.minFilter = THREE.LinearFilter;
         videoTexture.magFilter = THREE.LinearFilter;
-        videoTexture.wrapS = THREE.RepeatWrapping;
-        videoTexture.repeat.set(0.5, 1);
-        videoTexture.offset.set(0.125, 0);
+        videoTexture.wrapS = THREE.ClampToEdgeWrapping;
 
-        const geo = new THREE.SphereGeometry(500, 60, 40);
+        // Left eye — offset switches to 0.5 for right eye in onBeforeRender
+        videoTexture.repeat.set(0.5, 1);
+        videoTexture.offset.set(0, 0);
+
+        // Hemisphere 180° — same approach as VideoPlayer180
+        const geo = new THREE.SphereGeometry(500, 60, 40, Math.PI / 2, Math.PI);
         geo.scale(-1, 1, 1);
-        const mat = new THREE.MeshBasicMaterial({ map: videoTexture, depthWrite: false, depthTest: false });
+
+        const mat = new THREE.MeshBasicMaterial({
+          map: videoTexture,
+          depthWrite: false,
+          depthTest: false
+        });
+
         const sphere = new THREE.Mesh(geo, mat);
         sphere.renderOrder = -1;
-        sphere.rotation.y = Math.PI;
+
+        // VR headset looks at -Z (forward), so rotation = -PI/2
+        sphere.rotation.y = -Math.PI / 2;
+
         sphere.onBeforeRender = (_r, _s, cam: import("three").Camera) => {
           const xrCam = cam as import("three").PerspectiveCamera & { viewport?: { x: number } };
+
+          // 5. แก้ไขการสลับ Texture Offset สำหรับตาซ้ายและตาขวาในโหมด VR
           if (renderer.xr.isPresenting && xrCam.viewport && xrCam.viewport.x > 0) {
-            videoTexture.offset.x = 0.625;
+            // Right Eye: เลื่อนไปอ่านวิดีโอครึ่งหลัง (จากจุด 0.5 ถึง 1.0)
+            videoTexture.offset.x = 0.5;
           } else {
-            videoTexture.offset.x = 0.125;
+            // Left Eye: อ่านวิดีโอครึ่งแรก (จากจุด 0.0 ถึง 0.5)
+            videoTexture.offset.x = 0.0;
           }
         };
+
         scene.add(sphere);
       } else {
         // Default environment
@@ -300,7 +317,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, onExit
             exitBtn.visible = true;
           } else if (hits.length > 0) {
             // Button visible + pointing at it — exit
-            renderer.xr.getSession()?.end().catch(() => {}).finally(() => onExit());
+            renderer.xr.getSession()?.end().catch(() => { }).finally(() => onExit());
           } else {
             // Button visible + pointing elsewhere — hide it
             exitBtn.visible = false;
@@ -314,7 +331,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, onExit
         ctrl2.addEventListener("selectstart", () => onCtrlPress(ctrl2));
         scene.add(ctrl2);
 
-        const laserGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-1)]);
+        const laserGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]);
         const laserMat = new THREE.LineBasicMaterial({ color: 0xffffff });
         const l1 = new THREE.Line(laserGeo, laserMat); l1.scale.z = 5; ctrl1.add(l1);
         const l2 = new THREE.Line(laserGeo.clone(), laserMat); l2.scale.z = 5; ctrl2.add(l2);
@@ -323,290 +340,290 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, onExit
         renderer.xr.addEventListener("sessionend", () => { exitBtn.visible = false; });
       }
 
-      // Presentation slide screen
-      if (mode === "presentation" && slides.length > 0) {
-        const distance = 5;
-        const fov = 75;
-        const visibleH = 2 * distance * Math.tan((fov * Math.PI / 180) / 2);
-        const slideH = visibleH * 0.45;
+    // Presentation slide screen
+    if (mode === "presentation" && slides.length > 0) {
+      const distance = 5;
+      const fov = 75;
+      const visibleH = 2 * distance * Math.tan((fov * Math.PI / 180) / 2);
+      const slideH = visibleH * 0.45;
 
-        const loader = new THREE.TextureLoader();
-        loader.load(slides[0], (texture) => {
-          if (cancelled) return;
-          // Use actual aspect ratio from image (same as original project)
-          const img = texture.image as HTMLImageElement;
-          const aspectRatio = img.width / img.height;
-          const slideW = slideH * aspectRatio;
+      const loader = new THREE.TextureLoader();
+      loader.load(slides[0], (texture) => {
+        if (cancelled) return;
+        // Use actual aspect ratio from image (same as original project)
+        const img = texture.image as HTMLImageElement;
+        const aspectRatio = img.width / img.height;
+        const slideW = slideH * aspectRatio;
 
-          texture.minFilter = THREE.LinearMipmapLinearFilter;
-          texture.magFilter = THREE.LinearFilter;
-          texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-          texture.generateMipmaps = true;
+        texture.minFilter = THREE.LinearMipmapLinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        texture.generateMipmaps = true;
 
-          const geo = new THREE.PlaneGeometry(slideW, slideH);
-          const mat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
-          const mesh = new THREE.Mesh(geo, mat);
-          mesh.position.set(0, 3.3, -distance);
-          scene.add(mesh);
-          slideMeshRef.current = mesh;
+        const geo = new THREE.PlaneGeometry(slideW, slideH);
+        const mat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(0, 3.3, -distance);
+        scene.add(mesh);
+        slideMeshRef.current = mesh;
 
-          // ‹ › buttons — sides of slide, vertically centered
-          const btnGeo = new THREE.PlaneGeometry(0.7, 0.5);
-          const makeLabel = (text: string) => {
-            const c = document.createElement("canvas");
-            c.width = 256; c.height = 128;
-            const ctx = c.getContext("2d")!;
-            ctx.fillStyle = "#fff";
-            ctx.font = "bold 96px Arial";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText(text, 128, 64);
-            return new THREE.CanvasTexture(c);
-          };
-
-          const prevBtn = new THREE.Mesh(btnGeo, new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.85 }));
-          prevBtn.position.set(-(slideW / 2 + 0.7), 3.3, -distance);
-          prevBtn.userData = { action: prevSlide };
-          scene.add(prevBtn);
-          const prevLabel = new THREE.Mesh(btnGeo, new THREE.MeshBasicMaterial({ map: makeLabel("‹"), transparent: true }));
-          prevLabel.position.set(prevBtn.position.x, 3.3, -distance + 0.01);
-          scene.add(prevLabel);
-
-          const nextBtn = new THREE.Mesh(btnGeo, new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.85 }));
-          nextBtn.position.set(slideW / 2 + 0.7, 3.3, -distance);
-          nextBtn.userData = { action: nextSlide };
-          scene.add(nextBtn);
-          const nextLabel = new THREE.Mesh(btnGeo, new THREE.MeshBasicMaterial({ map: makeLabel("›"), transparent: true }));
-          nextLabel.position.set(nextBtn.position.x, 3.3, -distance + 0.01);
-          scene.add(nextLabel);
-
-          // End button (3D — visible in VR), top-center above slide
-          const endBtnGeo = new THREE.PlaneGeometry(0.9, 0.35);
-          const endBtnCanvas = document.createElement("canvas");
-          endBtnCanvas.width = 384; endBtnCanvas.height = 128;
-          const endCtx = endBtnCanvas.getContext("2d")!;
-          endCtx.fillStyle = "#ef4444";
-          endCtx.roundRect(0, 0, 384, 128, 32);
-          endCtx.fill();
-          endCtx.fillStyle = "#fff";
-          endCtx.font = "bold 64px Arial";
-          endCtx.textAlign = "center";
-          endCtx.textBaseline = "middle";
-          endCtx.fillText("End", 192, 64);
-          const endBtnMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(endBtnCanvas), transparent: true });
-          const endBtn = new THREE.Mesh(endBtnGeo, endBtnMat);
-          endBtn.position.set(0, 3.3 + slideH / 2 + 0.35, -distance);
-          endBtn.userData = { action: endPresentation };
-          scene.add(endBtn);
-
-          // Mouse raycaster for desktop clicks — only on canvas
-          const mouseRaycaster = new THREE.Raycaster();
-          const onMouseClick = (e: MouseEvent) => {
-            if (e.target !== renderer.domElement) return;
-            const rect = renderer.domElement.getBoundingClientRect();
-            const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-            const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-            mouseRaycaster.setFromCamera(new THREE.Vector2(x, y), camera);
-            const hits = mouseRaycaster.intersectObjects([prevBtn, nextBtn, endBtn]);
-            if (hits.length > 0 && hits[0].object.userData.action) {
-              hits[0].object.userData.action();
-            }
-          };
-          window.addEventListener("click", onMouseClick);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (renderer as any)._cleanupClick = () => window.removeEventListener("click", onMouseClick);
-
-          // VR Controllers with raycaster
-          const ctrlRaycaster = new THREE.Raycaster();
-          const checkClick = (ctrl: import("three").XRTargetRaySpace) => {
-            const mx = new THREE.Matrix4();
-            mx.identity().extractRotation(ctrl.matrixWorld);
-            ctrlRaycaster.ray.origin.setFromMatrixPosition(ctrl.matrixWorld);
-            ctrlRaycaster.ray.direction.set(0, 0, -1).applyMatrix4(mx);
-            const hits = ctrlRaycaster.intersectObjects([prevBtn, nextBtn, endBtn]);
-            if (hits.length > 0 && hits[0].object.userData.action) {
-              hits[0].object.userData.action();
-            }
-          };
-
-          const ctrl1 = renderer.xr.getController(0);
-          ctrl1.addEventListener("selectstart", () => checkClick(ctrl1));
-          scene.add(ctrl1);
-          const ctrl2 = renderer.xr.getController(1);
-          ctrl2.addEventListener("selectstart", () => checkClick(ctrl2));
-          scene.add(ctrl2);
-
-          // Laser lines
-          const laserGeo = new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(0, 0, 0),
-            new THREE.Vector3(0, 0, -1),
-          ]);
-          const laserMat = new THREE.LineBasicMaterial({ color: 0x3b82f6 });
-          const laser1 = new THREE.Line(laserGeo, laserMat);
-          laser1.scale.z = 5;
-          ctrl1.add(laser1);
-          const laser2 = new THREE.Line(laserGeo.clone(), laserMat);
-          laser2.scale.z = 5;
-          ctrl2.add(laser2);
-        });
-
-        // Gamepad polling (uses stable callback refs, no dependency on slideW/slideH)
-        const gamepadState: Record<string, Record<string, unknown>> = {};
-        const pollGamepad = () => {
-          if (!renderer.xr.isPresenting) { requestAnimationFrame(pollGamepad); return; }
-          const session = renderer.xr.getSession();
-          if (!session) { requestAnimationFrame(pollGamepad); return; }
-          session.inputSources.forEach((src, i) => {
-            if (!src.gamepad) return;
-            const key = `c${i}`;
-            if (!gamepadState[key]) gamepadState[key] = {};
-            const state = gamepadState[key];
-            src.gamepad.buttons.forEach((btn, bi) => {
-              const wasPressed = !!state[`b${bi}`];
-              if (btn.pressed && !wasPressed) {
-                if (bi === 4) prevSlide();
-                else if (bi === 5) nextSlide();
-                else if (bi === 0) nextSlide();
-                else if (bi === 1) {
-                  if (!state.gripStart) state.gripStart = Date.now();
-                }
-              }
-              if (bi === 1 && btn.pressed && state.gripStart) {
-                if (Date.now() - (state.gripStart as number) > 1000) {
-                  endPresentation();
-                  state.gripStart = null;
-                }
-              }
-              if (bi === 1 && !btn.pressed) state.gripStart = null;
-              state[`b${bi}`] = btn.pressed;
-            });
-          });
-          requestAnimationFrame(pollGamepad);
+        // ‹ › buttons — sides of slide, vertically centered
+        const btnGeo = new THREE.PlaneGeometry(0.7, 0.5);
+        const makeLabel = (text: string) => {
+          const c = document.createElement("canvas");
+          c.width = 256; c.height = 128;
+          const ctx = c.getContext("2d")!;
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold 96px Arial";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(text, 128, 64);
+          return new THREE.CanvasTexture(c);
         };
-        pollGamepad();
-      }
 
-      // Keyboard shortcuts
-      const onKey = (e: KeyboardEvent) => {
-        if (e.key === "ArrowRight" || e.key === "b") nextSlide();
-        else if (e.key === "ArrowLeft" || e.key === "a") prevSlide();
-        else if (e.key === "Escape") { if (mode === "presentation") endPresentation(); else onExit(); }
-      };
-      window.addEventListener("keydown", onKey);
+        const prevBtn = new THREE.Mesh(btnGeo, new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.85 }));
+        prevBtn.position.set(-(slideW / 2 + 0.7), 3.3, -distance);
+        prevBtn.userData = { action: prevSlide };
+        scene.add(prevBtn);
+        const prevLabel = new THREE.Mesh(btnGeo, new THREE.MeshBasicMaterial({ map: makeLabel("‹"), transparent: true }));
+        prevLabel.position.set(prevBtn.position.x, 3.3, -distance + 0.01);
+        scene.add(prevLabel);
 
-      // Animation loop
-      renderer.setAnimationLoop(() => {
-        renderer.render(scene, camera);
+        const nextBtn = new THREE.Mesh(btnGeo, new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.85 }));
+        nextBtn.position.set(slideW / 2 + 0.7, 3.3, -distance);
+        nextBtn.userData = { action: nextSlide };
+        scene.add(nextBtn);
+        const nextLabel = new THREE.Mesh(btnGeo, new THREE.MeshBasicMaterial({ map: makeLabel("›"), transparent: true }));
+        nextLabel.position.set(nextBtn.position.x, 3.3, -distance + 0.01);
+        scene.add(nextLabel);
+
+        // End button (3D — visible in VR), top-center above slide
+        const endBtnGeo = new THREE.PlaneGeometry(0.9, 0.35);
+        const endBtnCanvas = document.createElement("canvas");
+        endBtnCanvas.width = 384; endBtnCanvas.height = 128;
+        const endCtx = endBtnCanvas.getContext("2d")!;
+        endCtx.fillStyle = "#ef4444";
+        endCtx.roundRect(0, 0, 384, 128, 32);
+        endCtx.fill();
+        endCtx.fillStyle = "#fff";
+        endCtx.font = "bold 64px Arial";
+        endCtx.textAlign = "center";
+        endCtx.textBaseline = "middle";
+        endCtx.fillText("End", 192, 64);
+        const endBtnMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(endBtnCanvas), transparent: true });
+        const endBtn = new THREE.Mesh(endBtnGeo, endBtnMat);
+        endBtn.position.set(0, 3.3 + slideH / 2 + 0.35, -distance);
+        endBtn.userData = { action: endPresentation };
+        scene.add(endBtn);
+
+        // Mouse raycaster for desktop clicks — only on canvas
+        const mouseRaycaster = new THREE.Raycaster();
+        const onMouseClick = (e: MouseEvent) => {
+          if (e.target !== renderer.domElement) return;
+          const rect = renderer.domElement.getBoundingClientRect();
+          const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+          const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+          mouseRaycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+          const hits = mouseRaycaster.intersectObjects([prevBtn, nextBtn, endBtn]);
+          if (hits.length > 0 && hits[0].object.userData.action) {
+            hits[0].object.userData.action();
+          }
+        };
+        window.addEventListener("click", onMouseClick);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (renderer as any)._cleanupClick = () => window.removeEventListener("click", onMouseClick);
+
+        // VR Controllers with raycaster
+        const ctrlRaycaster = new THREE.Raycaster();
+        const checkClick = (ctrl: import("three").XRTargetRaySpace) => {
+          const mx = new THREE.Matrix4();
+          mx.identity().extractRotation(ctrl.matrixWorld);
+          ctrlRaycaster.ray.origin.setFromMatrixPosition(ctrl.matrixWorld);
+          ctrlRaycaster.ray.direction.set(0, 0, -1).applyMatrix4(mx);
+          const hits = ctrlRaycaster.intersectObjects([prevBtn, nextBtn, endBtn]);
+          if (hits.length > 0 && hits[0].object.userData.action) {
+            hits[0].object.userData.action();
+          }
+        };
+
+        const ctrl1 = renderer.xr.getController(0);
+        ctrl1.addEventListener("selectstart", () => checkClick(ctrl1));
+        scene.add(ctrl1);
+        const ctrl2 = renderer.xr.getController(1);
+        ctrl2.addEventListener("selectstart", () => checkClick(ctrl2));
+        scene.add(ctrl2);
+
+        // Laser lines
+        const laserGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, 0, 0),
+          new THREE.Vector3(0, 0, -1),
+        ]);
+        const laserMat = new THREE.LineBasicMaterial({ color: 0x3b82f6 });
+        const laser1 = new THREE.Line(laserGeo, laserMat);
+        laser1.scale.z = 5;
+        ctrl1.add(laser1);
+        const laser2 = new THREE.Line(laserGeo.clone(), laserMat);
+        laser2.scale.z = 5;
+        ctrl2.add(laser2);
       });
 
-      // Resize
-      const onResize = () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
+      // Gamepad polling (uses stable callback refs, no dependency on slideW/slideH)
+      const gamepadState: Record<string, Record<string, unknown>> = {};
+      const pollGamepad = () => {
+        if (!renderer.xr.isPresenting) { requestAnimationFrame(pollGamepad); return; }
+        const session = renderer.xr.getSession();
+        if (!session) { requestAnimationFrame(pollGamepad); return; }
+        session.inputSources.forEach((src, i) => {
+          if (!src.gamepad) return;
+          const key = `c${i}`;
+          if (!gamepadState[key]) gamepadState[key] = {};
+          const state = gamepadState[key];
+          src.gamepad.buttons.forEach((btn, bi) => {
+            const wasPressed = !!state[`b${bi}`];
+            if (btn.pressed && !wasPressed) {
+              if (bi === 4) prevSlide();
+              else if (bi === 5) nextSlide();
+              else if (bi === 0) nextSlide();
+              else if (bi === 1) {
+                if (!state.gripStart) state.gripStart = Date.now();
+              }
+            }
+            if (bi === 1 && btn.pressed && state.gripStart) {
+              if (Date.now() - (state.gripStart as number) > 1000) {
+                endPresentation();
+                state.gripStart = null;
+              }
+            }
+            if (bi === 1 && !btn.pressed) state.gripStart = null;
+            state[`b${bi}`] = btn.pressed;
+          });
+        });
+        requestAnimationFrame(pollGamepad);
       };
-      window.addEventListener("resize", onResize);
+      pollGamepad();
+    }
 
-      // Start audio recording for presentation
-      if (mode === "presentation") {
-        startTimeRef.current = Date.now();
-        startAudioRecording();
-      }
+    // Keyboard shortcuts
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight" || e.key === "b") nextSlide();
+      else if (e.key === "ArrowLeft" || e.key === "a") prevSlide();
+      else if (e.key === "Escape") { if (mode === "presentation") endPresentation(); else onExit(); }
+    };
+    window.addEventListener("keydown", onKey);
 
-      return () => {
-        window.removeEventListener("keydown", onKey);
-        window.removeEventListener("resize", onResize);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (renderer as any)._cleanupClick?.();
-        renderer.setAnimationLoop(null);
-        renderer.dispose();
-        if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
-      };
+    // Animation loop
+    renderer.setAnimationLoop(() => {
+      renderer.render(scene, camera);
     });
 
-    return () => {
-      cancelled = true;
-      slideMeshRef.current = null;
-      if (rendererRef.current) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (rendererRef.current as any)._cleanupClick?.();
-        rendererRef.current.setAnimationLoop(null);
-        rendererRef.current.dispose();
-      }
+    // Resize
+    const onResize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    window.addEventListener("resize", onResize);
 
-  const enterVR = useCallback(async () => {
-    if (!rendererRef.current || !navigator.xr) return;
-    try {
-      const session = await navigator.xr.requestSession("immersive-vr", {
-        optionalFeatures: ["local-floor", "bounded-floor"],
-      });
-      await rendererRef.current.xr.setSession(session);
-    } catch (e) {
-      console.warn("Failed to enter VR:", e);
+    // Start audio recording for presentation
+    if (mode === "presentation") {
+      startTimeRef.current = Date.now();
+      startAudioRecording();
     }
-  }, []);
 
-  const timerDisplay = `${String(Math.floor(timer / 60)).padStart(2, "0")}:${String(timer % 60).padStart(2, "0")}`;
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onResize);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (renderer as any)._cleanupClick?.();
+      renderer.setAnimationLoop(null);
+      renderer.dispose();
+      if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
+    };
+  });
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black">
-      {/* Three.js canvas container */}
-      <div ref={containerRef} className="w-full h-full" />
+  return () => {
+    cancelled = true;
+    slideMeshRef.current = null;
+    if (rendererRef.current) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (rendererRef.current as any)._cleanupClick?.();
+      rendererRef.current.setAnimationLoop(null);
+      rendererRef.current.dispose();
+    }
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
-      {/* Top HUD overlay */}
-      <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-4 pointer-events-none">
-        <div className="pointer-events-auto">
-          <button
-            onClick={() => (mode === "presentation" ? endPresentation() : onExit())}
-            className="flex items-center bg-black/60 hover:bg-black/80 text-white font-medium p-2 rounded-lg transition-colors backdrop-blur-sm border border-white/10"
-          >
-            <X size={15} />
-          </button>
-        </div>
+const enterVR = useCallback(async () => {
+  if (!rendererRef.current || !navigator.xr) return;
+  try {
+    const session = await navigator.xr.requestSession("immersive-vr", {
+      optionalFeatures: ["local-floor", "bounded-floor"],
+    });
+    await rendererRef.current.xr.setSession(session);
+  } catch (e) {
+    console.warn("Failed to enter VR:", e);
+  }
+}, []);
 
-        {mode === "presentation" && (
-          <div className="flex items-center gap-3">
-            <div className="bg-black/60 backdrop-blur-sm border border-white/10 rounded-lg px-3 py-2 flex items-center gap-2 text-white text-sm font-mono">
-              <Timer size={14} className="text-[#3b82f6]" />
-              {timerDisplay}
-            </div>
-            <div className="bg-black/60 backdrop-blur-sm border border-white/10 rounded-lg px-3 py-2 flex items-center gap-2 text-white text-sm font-mono">
-              <Layers size={14} className="text-[#3b82f6]" />
-              {currentSlideIdx + 1} / {slides.length}
-            </div>
-          </div>
-        )}
+const timerDisplay = `${String(Math.floor(timer / 60)).padStart(2, "0")}:${String(timer % 60).padStart(2, "0")}`;
 
-        {xrSupported && !isVRMode && (
-          <button
-            onClick={enterVR}
-            className="pointer-events-auto flex items-center gap-2 bg-[#3b82f6] hover:bg-[#2563eb] text-white text-sm font-semibold px-4 py-2 rounded-full transition-colors shadow-lg"
-          >
-            <Headset size={15} />
-            Enter VR
-          </button>
-        )}
+return (
+  <div className="fixed inset-0 z-50 bg-black">
+    {/* Three.js canvas container */}
+    <div ref={containerRef} className="w-full h-full" />
 
-        {isVRMode && (
-          <div className="bg-[#3b82f6]/80 backdrop-blur-sm rounded-lg px-3 py-2 flex items-center gap-2 text-white text-xs font-semibold">
-            <Headset size={13} />
-            VR MODE
-          </div>
-        )}
+    {/* Top HUD overlay */}
+    <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-4 pointer-events-none">
+      <div className="pointer-events-auto">
+        <button
+          onClick={() => (mode === "presentation" ? endPresentation() : onExit())}
+          className="flex items-center bg-black/60 hover:bg-black/80 text-white font-medium p-2 rounded-lg transition-colors backdrop-blur-sm border border-white/10"
+        >
+          <X size={15} />
+        </button>
       </div>
 
+      {mode === "presentation" && (
+        <div className="flex items-center gap-3">
+          <div className="bg-black/60 backdrop-blur-sm border border-white/10 rounded-lg px-3 py-2 flex items-center gap-2 text-white text-sm font-mono">
+            <Timer size={14} className="text-[#3b82f6]" />
+            {timerDisplay}
+          </div>
+          <div className="bg-black/60 backdrop-blur-sm border border-white/10 rounded-lg px-3 py-2 flex items-center gap-2 text-white text-sm font-mono">
+            <Layers size={14} className="text-[#3b82f6]" />
+            {currentSlideIdx + 1} / {slides.length}
+          </div>
+        </div>
+      )}
 
-      {/* Analyzing overlay */}
-      {analyzing && (
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4 text-white">
-          <Loader2 size={40} className="animate-spin text-[#3b82f6]" />
-          <p className="text-xl font-semibold">Analyzing your presentation...</p>
-          <p className="text-sm text-white/60">AI is reviewing your speech with Groq</p>
+      {xrSupported && !isVRMode && (
+        <button
+          onClick={enterVR}
+          className="pointer-events-auto flex items-center gap-2 bg-[#3b82f6] hover:bg-[#2563eb] text-white text-sm font-semibold px-4 py-2 rounded-full transition-colors shadow-lg"
+        >
+          <Headset size={15} />
+          Enter VR
+        </button>
+      )}
+
+      {isVRMode && (
+        <div className="bg-[#3b82f6]/80 backdrop-blur-sm rounded-lg px-3 py-2 flex items-center gap-2 text-white text-xs font-semibold">
+          <Headset size={13} />
+          VR MODE
         </div>
       )}
     </div>
-  );
+
+
+    {/* Analyzing overlay */}
+    {analyzing && (
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4 text-white">
+        <Loader2 size={40} className="animate-spin text-[#3b82f6]" />
+        <p className="text-xl font-semibold">Analyzing your presentation...</p>
+        <p className="text-sm text-white/60">AI is reviewing your speech with Groq</p>
+      </div>
+    )}
+  </div>
+);
 }
