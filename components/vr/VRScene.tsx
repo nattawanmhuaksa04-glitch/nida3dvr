@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, type RefObject } from "react";
 import { X, Timer, Layers, Headset, Loader2 } from "lucide-react";
 import type { AIScore } from "@/types";
 
@@ -9,11 +9,12 @@ interface VRSceneProps {
   videoUrl?: string;
   slides?: string[];
   sessionId?: string;
+  heartRateRef?: RefObject<number>;
   onExit: () => void;
   onDone?: (result: { score?: AIScore; duration?: number }) => void;
 }
 
-export default function VRScene({ mode, videoUrl, slides = [], sessionId, onExit, onDone }: VRSceneProps) {
+export default function VRScene({ mode, videoUrl, slides = [], sessionId, heartRateRef, onExit, onDone }: VRSceneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rendererRef = useRef<any>(null);
@@ -422,9 +423,63 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, onExit
         endCtx.fillText("End", 192, 64);
         const endBtnMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(endBtnCanvas), transparent: true });
         const endBtn = new THREE.Mesh(endBtnGeo, endBtnMat);
-        endBtn.position.set(0, 3.3 + slideH / 2 + 0.35, -distance);
+        // Offset End button left when HR is shown, keep centered otherwise
+        endBtn.position.set(heartRateRef ? -0.5 : 0, 3.3 + slideH / 2 + 0.35, -distance);
         endBtn.userData = { action: endPresentation };
         scene.add(endBtn);
+
+        // HR display next to End button
+        if (heartRateRef) {
+          const hrCanvas = document.createElement("canvas");
+          hrCanvas.width = 320; hrCanvas.height = 128;
+          const hrCtx = hrCanvas.getContext("2d")!;
+          const hrTexture = new THREE.CanvasTexture(hrCanvas);
+          const hrMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.9, 0.35),
+            new THREE.MeshBasicMaterial({ map: hrTexture, transparent: true, depthTest: false })
+          );
+          hrMesh.position.set(0.5, 3.3 + slideH / 2 + 0.35, -distance);
+          hrMesh.renderOrder = 1;
+          scene.add(hrMesh);
+
+          let lastHr = -1;
+          hrDisplay.fn = () => {
+            const hr = heartRateRef.current ?? 0;
+            if (hr === lastHr) return;
+            lastHr = hr;
+            hrCtx.clearRect(0, 0, 320, 128);
+            const color = hr >= 130 ? "#ef4444" : hr >= 100 ? "#eab308" : "#22c55e";
+            hrCtx.fillStyle = "rgba(0,0,0,0.70)";
+            (hrCtx as CanvasRenderingContext2D & { roundRect: (x:number,y:number,w:number,h:number,r:number) => void })
+              .roundRect(0, 0, 320, 128, 20);
+            hrCtx.fill();
+            hrCtx.textBaseline = "middle";
+            hrCtx.textAlign = "left";
+            // measure each part with its own font first
+            const numStr = hr > 0 ? `${hr}` : "--";
+            hrCtx.font = "bold 56px Arial";
+            const heartW = hrCtx.measureText("♥").width;
+            hrCtx.font = "bold 54px Arial";
+            const numW = hrCtx.measureText(numStr).width;
+            hrCtx.font = "20px Arial";
+            const bpmW = hrCtx.measureText("bpm").width;
+            // center the whole group
+            const gap = 8;
+            const totalW = heartW + gap + numW + gap + bpmW;
+            const sx = (320 - totalW) / 2;
+            hrCtx.fillStyle = color;
+            hrCtx.font = "bold 56px Arial";
+            hrCtx.fillText("♥", sx, 64);
+            hrCtx.fillStyle = "#ffffff";
+            hrCtx.font = "bold 54px Arial";
+            hrCtx.fillText(numStr, sx + heartW + gap, 64);
+            hrCtx.fillStyle = "#94a3b8";
+            hrCtx.font = "20px Arial";
+            hrCtx.fillText("bpm", sx + heartW + gap + numW + gap, 72);
+            hrTexture.needsUpdate = true;
+          };
+          hrDisplay.fn();
+        }
 
         // Mouse raycaster for desktop clicks — only on canvas
         const mouseRaycaster = new THREE.Raycaster();
@@ -521,8 +576,12 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, onExit
     };
     window.addEventListener("keydown", onKey);
 
+    // HR display — fn assigned inside loader callback
+    const hrDisplay = { fn: null as (() => void) | null };
+
     // Animation loop
     renderer.setAnimationLoop(() => {
+      hrDisplay.fn?.();
       renderer.render(scene, camera);
     });
 

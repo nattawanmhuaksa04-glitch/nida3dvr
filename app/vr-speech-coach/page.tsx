@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import dynamic from "next/dynamic";
-import { Headset, Video, FileText, Layers, Star, Clock, Play, CheckCircle2, X } from "lucide-react";
+import { Headset, Video, FileText, Layers, Star, Clock, Play, CheckCircle2, X, Heart } from "lucide-react";
 import ScoreReport from "@/components/presentation/ScoreReport";
 import type { Video as VideoType, PresentationSession, AIScore } from "@/types";
 
@@ -123,6 +123,48 @@ export default function VRModePage() {
   const [scoreResult, setScoreResult] = useState<{
     score: AIScore; duration: number; title: string; slideCount: number;
   } | null>(null);
+  const [heartRate, setHeartRate] = useState<number | null>(null);
+  const [hrConnected, setHrConnected] = useState(false);
+  const hrRef = useRef<number>(0);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const hrDeviceRef = useRef<any>(null);
+
+  useEffect(() => { if (heartRate !== null) hrRef.current = heartRate; }, [heartRate]);
+
+  const connectHeartRate = useCallback(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const bt = (navigator as any).bluetooth;
+    if (!bt) { alert("Web Bluetooth ไม่รองรับใน browser นี้"); return; }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const device: any = await bt.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: ["heart_rate"],
+      });
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService("heart_rate");
+      const char = await service.getCharacteristic("heart_rate_measurement");
+      await char.startNotifications();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      char.addEventListener("characteristicvaluechanged", (e: any) => {
+        const val: DataView = e.target.value;
+        const flags = val.getUint8(0);
+        const hr = (flags & 0x1) ? val.getUint16(1, true) : val.getUint8(1);
+        setHeartRate(hr);
+        hrRef.current = hr;
+      });
+      hrDeviceRef.current = device;
+      device.addEventListener("gattserverdisconnected", () => {
+        setHrConnected(false); setHeartRate(null); hrRef.current = 0;
+      });
+      setHrConnected(true);
+    } catch (err) { console.warn("HR connect failed:", err); }
+  }, []);
+
+  const disconnectHeartRate = useCallback(() => {
+    hrDeviceRef.current?.gatt?.disconnect();
+    setHrConnected(false); setHeartRate(null); hrRef.current = 0;
+  }, []);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -168,6 +210,7 @@ export default function VRModePage() {
         slides={vrState.slides}
         sessionId={vrState.sessionId}
         videoUrl={vrState.videoUrl}
+        heartRateRef={hrRef}
         onExit={() => setVrState(null)}
         onDone={handleVRDone}
       />
@@ -214,6 +257,29 @@ export default function VRModePage() {
                 </span>
               )}
             </div>
+            <button
+              onClick={connectHeartRate}
+              className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl border transition-all shrink-0 cursor-pointer ${
+                !hrConnected
+                  ? "bg-white border-slate-200 text-slate-500 hover:border-red-200 hover:text-red-400"
+                  : heartRate !== null && heartRate >= 130
+                  ? "bg-red-50 border-red-300 text-red-600"
+                  : heartRate !== null && heartRate >= 100
+                  ? "bg-yellow-50 border-yellow-300 text-yellow-600"
+                  : "bg-green-50 border-green-300 text-green-600"
+              }`}
+            >
+              <Heart size={12} fill={hrConnected ? "currentColor" : "none"} />
+              {hrConnected && heartRate ? `${heartRate} bpm` : hrConnected ? "Connected" : "HR Monitor"}
+            </button>
+            {hrConnected && (
+              <button
+                onClick={disconnectHeartRate}
+                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer shrink-0"
+              >
+                <X size={12} />
+              </button>
+            )}
             <button
               onClick={handleEnterVR}
               disabled={!canEnter}
