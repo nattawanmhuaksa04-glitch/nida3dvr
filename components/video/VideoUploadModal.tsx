@@ -23,13 +23,13 @@ export default function VideoUploadModal({ onClose, onSuccess, initialFile }: { 
     }
   }, [showSpec]);
 
-  const MAX_SIZE = 2 * 1024 ** 3; // 2 GB
+  const MAX_SIZE = 3 * 1024 ** 3; // 3 GB
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); setDragging(false);
     const f = e.dataTransfer.files[0];
     if (f && f.type === "video/mp4") {
-      if (f.size > MAX_SIZE) { setErrorMsg("File exceeds 2 GB limit"); setStep("error"); return; }
+      if (f.size > MAX_SIZE) { setErrorMsg("File exceeds 3 GB limit"); setStep("error"); return; }
       setFile(f); if (!title) setTitle(f.name.replace(/\.[^.]+$/, ""));
     }
   }, [title]);
@@ -107,7 +107,7 @@ export default function VideoUploadModal({ onClose, onSuccess, initialFile }: { 
             ["Frame Rate", "24 – 60 fps"],
             ["Codec",      "H.264"],
             ["Audio",      "Stereo or Spatial Audio"],
-            ["Max Size",   "2 GB"],
+            ["Max Size",   "3 GB"],
           ].map(([label, value]) => (
             <div key={label} className="flex justify-between gap-4">
               <span className="text-slate-500 shrink-0">{label}</span>
@@ -148,7 +148,7 @@ export default function VideoUploadModal({ onClose, onSuccess, initialFile }: { 
                 <input ref={fileRef} type="file" accept="video/mp4" onChange={(e) => {
                   const f = e.target.files?.[0];
                   if (f) {
-                    if (f.size > MAX_SIZE) { setErrorMsg("File exceeds 2 GB limit"); setStep("error"); return; }
+                    if (f.size > MAX_SIZE) { setErrorMsg("File exceeds 3 GB limit"); setStep("error"); return; }
                     setFile(f); if (!title) setTitle(f.name.replace(/\.[^.]+$/, ""));
                   }
                 }} className="hidden" />
@@ -164,7 +164,7 @@ export default function VideoUploadModal({ onClose, onSuccess, initialFile }: { 
                   <div>
                     <p className="font-semibold text-slate-700 mb-1">Drop your video here</p>
                     <div className="flex items-center justify-center gap-1.5">
-                      <p className="text-sm text-slate-400">MP4 · SBS format · up to 2 GB</p>
+                      <p className="text-sm text-slate-400">MP4 · SBS format · up to 3 GB</p>
                       <button
                         ref={infoRef}
                         type="button"
