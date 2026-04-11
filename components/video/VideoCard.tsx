@@ -81,6 +81,7 @@ export default function VideoCard({ video, onPlay, onPlayVR, onDelete, onUpdate 
               src={video.thumbnailUrl}
               alt={video.title}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-brand-50 via-slate-50 to-slate-100 flex items-center justify-center">
