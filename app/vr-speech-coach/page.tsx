@@ -409,7 +409,7 @@ export default function VRModePage() {
                 <div>
                   <h2 className="text-xl font-black text-slate-900 tracking-tight">VR Speech Coach</h2>
                   <p className="text-sm text-slate-500 mt-1 leading-relaxed">
-                    ระบบช่วยฝึกนำเสนองานใน Virtual Reality พร้อมวิเคราะห์การพูดด้วย AI เพื่อให้คุณรู้จุดแข็งและปรับปรุงการนำเสนอได้ตรงจุด
+                    Practice your presentation in Virtual Reality. AI analyzes your speech and gives targeted feedback to help you improve where it matters most.
                   </p>
                 </div>
                 <button onClick={() => setShowLearnMore(false)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-700 transition-colors shrink-0">
@@ -420,16 +420,16 @@ export default function VRModePage() {
 
             {/* Steps */}
             <div className="px-7 py-5 space-y-4 flex-1">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">ขั้นตอนการใช้งาน</p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">How it works &nbsp;<span className="normal-case font-normal text-slate-300">* required</span></p>
               <div className="space-y-3">
                 {[
-                  { icon: <Video size={15} className="text-brand-600" />, title: "อัปโหลดวิดีโอ VR", desc: "ไปที่หน้า Videos แล้วอัปโหลดไฟล์ MP4 ฟอร์แมต Side-by-Side 180° เป็น background ใน VR" },
-                  { icon: <FileText size={15} className="text-violet-600" />, title: "อัปโหลด Presentation", desc: "ไปที่หน้า Presentations แล้วอัปโหลดไฟล์ PDF — ระบบจะแปลงเป็น slides อัตโนมัติ" },
-                  { icon: <Heart size={15} className="text-rose-500" />, title: "เชื่อมต่อนาฬิกา (ไม่บังคับ)", desc: "กดปุ่ม HR Monitor แล้วเลือกอุปกรณ์ BLE เช่น Garmin Forerunner เพื่อดูอัตราการเต้นหัวใจ realtime ขณะนำเสนอ — ไม่รองรับ Apple Watch" },
-                  { icon: <Headset size={15} className="text-brand-600" />, title: "เลือก Presentation + Video แล้วกด Enter VR", desc: "เลือก Presentation (บังคับ) และ VR Video background (ไม่บังคับ) แล้วกดปุ่ม Enter VR" },
-                  { icon: <Play size={15} className="text-emerald-600" />, title: "กด Enter VR อีกครั้งในหน้าจอ VR", desc: "เมื่อวิดีโอโหลดแล้ว กดปุ่ม Enter VR บนหน้าจอเพื่อเข้าสู่โหมด VR เต็มรูปแบบบน headset" },
-                  { icon: <Layers size={15} className="text-amber-500" />, title: "เริ่มนำเสนอ", desc: "กดปุ่ม A หรือ B บน controller เพื่อเลื่อน slide ไปข้างหน้า/ข้างหลัง หรือใช้ปุ่ม ‹ › ใน VR" },
-                  { icon: <Star size={15} className="text-brand-600" fill="currentColor" />, title: "AI วิเคราะห์ผลอัตโนมัติ", desc: "เมื่อถึง slide สุดท้ายกด Next อีกครั้ง หรือกดปุ่ม End — AI จะวิเคราะห์การนำเสนอและแสดงคะแนนทันที" },
+                  { icon: <Video size={15} className="text-brand-600" />, title: "Upload a VR Video *", desc: "Go to Videos and upload an MP4 file in Side-by-Side 180° format. This becomes your immersive VR background." },
+                  { icon: <FileText size={15} className="text-violet-600" />, title: "Upload a Presentation *", desc: "Go to Presentations and upload a PDF file. The system automatically converts each page into slides." },
+                  { icon: <Heart size={15} className="text-rose-500" />, title: "Connect HR Watch", desc: "Click HR Monitor and select your BLE device (e.g. Garmin Forerunner) to monitor your heart rate live. Apple Watch is not supported." },
+                  { icon: <Headset size={15} className="text-brand-600" />, title: "Select items and press Enter VR *", desc: "Select a Presentation (required) and a VR Video background, then click Enter VR." },
+                  { icon: <Play size={15} className="text-emerald-600" />, title: "Press Enter VR again on the VR screen *", desc: "Once the video loads, click Enter VR on screen to go fully immersive on your headset." },
+                  { icon: <Layers size={15} className="text-amber-500" />, title: "Present your slides *", desc: "Use controller buttons A / B to navigate slides forward and backward, or use the ‹ › buttons in VR." },
+                  { icon: <Star size={15} className="text-brand-600" fill="currentColor" />, title: "Get your AI score *", desc: "On the last slide press Next once more, or press the End button — AI will analyze your speech and display your score instantly." },
                 ].map((step, i) => (
                   <div key={i} className="flex gap-3">
                     <div className="flex items-center justify-center w-7 h-7 rounded-xl bg-slate-50 border border-slate-100 shrink-0 mt-0.5">
@@ -448,13 +448,13 @@ export default function VRModePage() {
 
               {/* Scoring */}
               <div className="mt-6 pt-5 border-t border-slate-100">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">เกณฑ์การให้คะแนน (100 คะแนน)</p>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Scoring Criteria — 100 pts total</p>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { label: "Filler Words", score: "25 คะแนน", desc: "นับคำฟุ่มเฟือย เออ / อืม / แบบว่า / คือ", color: "bg-rose-50 border-rose-100 text-rose-700" },
-                    { label: "Fluency", score: "25 คะแนน", desc: "ความลื่นไหล ต่อเนื่อง ชัดเจน", color: "bg-amber-50 border-amber-100 text-amber-700" },
-                    { label: "Structure", score: "25 คะแนน", desc: "มี intro, body, conclusion ชัดเจน", color: "bg-violet-50 border-violet-100 text-violet-700" },
-                    { label: "Time Mgmt", score: "25 คะแนน", desc: "เวลาต่อ slide เหมาะสม ไม่เร็ว/ช้าเกิน", color: "bg-emerald-50 border-emerald-100 text-emerald-700" },
+                    { label: "Filler Words", score: "25 pts", desc: "Counts filler words: uh / um / like / you know", color: "bg-rose-50 border-rose-100 text-rose-700" },
+                    { label: "Fluency", score: "25 pts", desc: "Smoothness, continuity and clarity of speech", color: "bg-amber-50 border-amber-100 text-amber-700" },
+                    { label: "Structure", score: "25 pts", desc: "Clear intro, body and conclusion", color: "bg-violet-50 border-violet-100 text-violet-700" },
+                    { label: "Time Mgmt", score: "25 pts", desc: "Appropriate time per slide — not too fast or slow", color: "bg-emerald-50 border-emerald-100 text-emerald-700" },
                   ].map((item) => (
                     <div key={item.label} className={`rounded-2xl border p-3 ${item.color}`}>
                       <div className="flex items-center justify-between mb-1">
@@ -465,7 +465,7 @@ export default function VRModePage() {
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-slate-400 mt-3 text-center">เขียว ≥ 80 &nbsp;·&nbsp; เหลือง ≥ 60 &nbsp;·&nbsp; แดง &lt; 60</p>
+                <p className="text-xs text-slate-400 mt-3 text-center">Score: green ≥ 80 &nbsp;·&nbsp; yellow ≥ 60 &nbsp;·&nbsp; red &lt; 60</p>
               </div>
             </div>
 
@@ -475,7 +475,7 @@ export default function VRModePage() {
                 onClick={() => setShowLearnMore(false)}
                 className="w-full btn-primary justify-center"
               >
-                เข้าใจแล้ว
+                Got it
               </button>
             </div>
           </div>
