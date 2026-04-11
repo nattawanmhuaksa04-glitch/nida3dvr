@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import dynamic from "next/dynamic";
-import { Headset, Video, FileText, Layers, Star, Clock, Play, CheckCircle2, X, Heart } from "lucide-react";
+import { Headset, Video, FileText, Layers, Star, Clock, Play, CheckCircle2, X, Heart, Info } from "lucide-react";
 import ScoreReport from "@/components/presentation/ScoreReport";
 import type { Video as VideoType, PresentationSession, AIScore } from "@/types";
 
@@ -125,6 +125,7 @@ export default function VRModePage() {
   } | null>(null);
   const [heartRate, setHeartRate] = useState<number | null>(null);
   const [hrConnected, setHrConnected] = useState(false);
+  const [showLearnMore, setShowLearnMore] = useState(false);
   const hrRef = useRef<number>(0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const hrDeviceRef = useRef<any>(null);
@@ -227,12 +228,15 @@ export default function VRModePage() {
         <div>
           <h1 className="text-2xl font-black text-white tracking-tight">VR Speech Coach</h1>
           <p className="text-white/80 text-sm mt-1.5">
-            Select a Presentation and VR Video, then press Enter VR
+            Select a Presentation and VR Video, pair your HR watch (optional), then press Enter VR
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="bg-white/10 hover:bg-white/20 text-white px-6 py-2.5 rounded-full font-bold backdrop-blur-md transition-all text-sm border border-white/10 cursor-pointer">
-            Learn More
+          <button
+            onClick={() => setShowLearnMore(true)}
+            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-5 py-2.5 rounded-full font-semibold backdrop-blur-md transition-all text-sm border border-white/20 cursor-pointer"
+          >
+            <Info size={14} /> Learn More
           </button>
         </div>
       </div>
@@ -394,6 +398,89 @@ export default function VRModePage() {
           </div>
         )}
       </div>
+
+      {/* Learn More modal */}
+      {showLearnMore && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="bg-white rounded-3xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl border border-slate-100 flex flex-col">
+            {/* Header */}
+            <div className="px-7 pt-7 pb-5 border-b border-slate-100">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight">VR Speech Coach</h2>
+                  <p className="text-sm text-slate-500 mt-1 leading-relaxed">
+                    ระบบช่วยฝึกนำเสนองานใน Virtual Reality พร้อมวิเคราะห์การพูดด้วย AI เพื่อให้คุณรู้จุดแข็งและปรับปรุงการนำเสนอได้ตรงจุด
+                  </p>
+                </div>
+                <button onClick={() => setShowLearnMore(false)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-700 transition-colors shrink-0">
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Steps */}
+            <div className="px-7 py-5 space-y-4 flex-1">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">ขั้นตอนการใช้งาน</p>
+              <div className="space-y-3">
+                {[
+                  { icon: <Video size={15} className="text-brand-600" />, title: "อัปโหลดวิดีโอ VR", desc: "ไปที่หน้า Videos แล้วอัปโหลดไฟล์ MP4 ฟอร์แมต Side-by-Side 180° เป็น background ใน VR" },
+                  { icon: <FileText size={15} className="text-violet-600" />, title: "อัปโหลด Presentation", desc: "ไปที่หน้า Presentations แล้วอัปโหลดไฟล์ PDF — ระบบจะแปลงเป็น slides อัตโนมัติ" },
+                  { icon: <Heart size={15} className="text-rose-500" />, title: "เชื่อมต่อนาฬิกา (ไม่บังคับ)", desc: "กดปุ่ม HR Monitor แล้วเลือกอุปกรณ์ BLE เช่น Garmin Forerunner เพื่อดูอัตราการเต้นหัวใจ realtime ขณะนำเสนอ — ไม่รองรับ Apple Watch" },
+                  { icon: <Headset size={15} className="text-brand-600" />, title: "เลือก Presentation + Video แล้วกด Enter VR", desc: "เลือก Presentation (บังคับ) และ VR Video background (ไม่บังคับ) แล้วกดปุ่ม Enter VR" },
+                  { icon: <Play size={15} className="text-emerald-600" />, title: "กด Enter VR อีกครั้งในหน้าจอ VR", desc: "เมื่อวิดีโอโหลดแล้ว กดปุ่ม Enter VR บนหน้าจอเพื่อเข้าสู่โหมด VR เต็มรูปแบบบน headset" },
+                  { icon: <Layers size={15} className="text-amber-500" />, title: "เริ่มนำเสนอ", desc: "กดปุ่ม A หรือ B บน controller เพื่อเลื่อน slide ไปข้างหน้า/ข้างหลัง หรือใช้ปุ่ม ‹ › ใน VR" },
+                  { icon: <Star size={15} className="text-brand-600" fill="currentColor" />, title: "AI วิเคราะห์ผลอัตโนมัติ", desc: "เมื่อถึง slide สุดท้ายกด Next อีกครั้ง หรือกดปุ่ม End — AI จะวิเคราะห์การนำเสนอและแสดงคะแนนทันที" },
+                ].map((step, i) => (
+                  <div key={i} className="flex gap-3">
+                    <div className="flex items-center justify-center w-7 h-7 rounded-xl bg-slate-50 border border-slate-100 shrink-0 mt-0.5">
+                      {step.icon}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-slate-300">{i + 1}</span>
+                        {step.title}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{step.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Scoring */}
+              <div className="mt-6 pt-5 border-t border-slate-100">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">เกณฑ์การให้คะแนน (100 คะแนน)</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: "Filler Words", score: "25 คะแนน", desc: "นับคำฟุ่มเฟือย เออ / อืม / แบบว่า / คือ", color: "bg-rose-50 border-rose-100 text-rose-700" },
+                    { label: "Fluency", score: "25 คะแนน", desc: "ความลื่นไหล ต่อเนื่อง ชัดเจน", color: "bg-amber-50 border-amber-100 text-amber-700" },
+                    { label: "Structure", score: "25 คะแนน", desc: "มี intro, body, conclusion ชัดเจน", color: "bg-violet-50 border-violet-100 text-violet-700" },
+                    { label: "Time Mgmt", score: "25 คะแนน", desc: "เวลาต่อ slide เหมาะสม ไม่เร็ว/ช้าเกิน", color: "bg-emerald-50 border-emerald-100 text-emerald-700" },
+                  ].map((item) => (
+                    <div key={item.label} className={`rounded-2xl border p-3 ${item.color}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-bold">{item.label}</p>
+                        <p className="text-[10px] font-semibold opacity-70">{item.score}</p>
+                      </div>
+                      <p className="text-[11px] opacity-80 leading-snug">{item.desc}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-400 mt-3 text-center">เขียว ≥ 80 &nbsp;·&nbsp; เหลือง ≥ 60 &nbsp;·&nbsp; แดง &lt; 60</p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-7 pb-7 pt-2">
+              <button
+                onClick={() => setShowLearnMore(false)}
+                className="w-full btn-primary justify-center"
+              >
+                เข้าใจแล้ว
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Score modal */}
       {scoreResult && (
