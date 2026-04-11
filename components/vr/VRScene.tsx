@@ -31,6 +31,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, heartR
   const [isVRMode, setIsVRMode] = useState(false);
   const [xrSupported, setXrSupported] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [videoReady, setVideoReady] = useState(!videoUrl); // true if no video
 
   // Audio recording
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -224,7 +225,10 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, heartR
         video.loop = true;
         video.muted = true;
         video.playsInline = true;
+        video.preload = "auto";
         video.crossOrigin = "anonymous";
+        video.addEventListener("canplay", () => { if (!cancelled) setVideoReady(true); }, { once: true });
+        video.load();
         video.play().catch(() => { });
 
         const videoTexture = new THREE.VideoTexture(video);
@@ -240,7 +244,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, heartR
         videoTexture.offset.set(0, 0);
 
         // Hemisphere 180° — same approach as VideoPlayer180
-        const geo = new THREE.SphereGeometry(500, 60, 40, Math.PI / 2, Math.PI);
+        const geo = new THREE.SphereGeometry(500, 48, 32, Math.PI / 2, Math.PI);
         geo.scale(-1, 1, 1);
 
         const mat = new THREE.MeshBasicMaterial({
@@ -680,6 +684,15 @@ return (
       )}
     </div>
 
+
+    {/* Video buffering overlay */}
+    {!videoReady && (
+      <div className="absolute inset-0 bg-black flex flex-col items-center justify-center gap-4 text-white">
+        <Loader2 size={40} className="animate-spin text-[#3b82f6]" />
+        <p className="text-lg font-semibold">Loading video...</p>
+        <p className="text-sm text-white/50">กำลังโหลดวิดีโอ</p>
+      </div>
+    )}
 
     {/* Analyzing overlay */}
     {analyzing && (
