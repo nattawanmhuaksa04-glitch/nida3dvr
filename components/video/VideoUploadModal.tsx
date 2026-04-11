@@ -290,39 +290,10 @@ async function validateVideo(file: File): Promise<{ valid: boolean; error?: stri
       }
       void isH264; // suppress unused warning
 
-      // Frame rate check via requestVideoFrameCallback
-      if ("requestVideoFrameCallback" in video) {
-        let frameCount = 0;
-        let startTime: number | null = null;
-
-        const onFrame = (now: number) => {
-          if (startTime === null) startTime = now;
-          frameCount++;
-          const elapsed = now - startTime;
-
-          if (frameCount < 30 && elapsed < 2000) {
-            (video as HTMLVideoElement & { requestVideoFrameCallback: (cb: (now: number) => void) => void })
-              .requestVideoFrameCallback(onFrame);
-          } else {
-            const fps = frameCount / (elapsed / 1000);
-            video.pause();
-            cleanup();
-            if (fps < 24) {
-              resolve({ valid: false, error: `Frame rate too low: ${fps.toFixed(1)} fps. Minimum required is 24 fps.` });
-            } else {
-              resolve({ valid: true });
-            }
-          }
-        };
-
-        (video as HTMLVideoElement & { requestVideoFrameCallback: (cb: (now: number) => void) => void })
-          .requestVideoFrameCallback(onFrame);
-        video.play().catch(() => { cleanup(); resolve({ valid: true }); }); // autoplay blocked → skip fps check
-      } else {
-        // requestVideoFrameCallback not supported — skip fps check
-        cleanup();
-        resolve({ valid: true });
-      }
+      // Frame rate check skipped — requestVideoFrameCallback measures decode speed,
+      // not actual video FPS, and produces false positives when buffering.
+      cleanup();
+      resolve({ valid: true });
     };
   });
 }
