@@ -15,6 +15,14 @@ export default function VideoUploadModal({ onClose, onSuccess, initialFile }: { 
   const [specPos, setSpecPos] = useState({ top: 0, left: 0 });
   const infoRef = useRef<HTMLButtonElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const xhrRef = useRef<XMLHttpRequest | null>(null);
+  const cancelledRef = useRef(false);
+
+  const handleClose = () => {
+    cancelledRef.current = true;
+    xhrRef.current?.abort();
+    onClose();
+  };
 
   useEffect(() => {
     if (showSpec && infoRef.current) {
@@ -58,13 +66,17 @@ export default function VideoUploadModal({ onClose, onSuccess, initialFile }: { 
 
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
+        xhrRef.current = xhr;
         xhr.upload.onprogress = (e) => { if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 90)); };
         xhr.onload = () => xhr.status === 200 ? resolve() : reject(new Error("Upload failed"));
         xhr.onerror = () => reject(new Error("Network error"));
+        xhr.onabort = () => reject(new Error("Upload cancelled"));
         xhr.open("PUT", uploadUrl);
         xhr.setRequestHeader("Content-Type", file.type);
         xhr.send(file);
       });
+
+      if (cancelledRef.current) return;
 
       setProgress(95);
       let thumbnailBlob: Blob | null = null;
@@ -128,7 +140,7 @@ export default function VideoUploadModal({ onClose, onSuccess, initialFile }: { 
             </div>
             <h2 className="font-bold text-slate-900">Upload VR Video</h2>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-700">
+          <button onClick={handleClose} className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-700">
             <X size={18} />
           </button>
         </div>
