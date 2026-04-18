@@ -14,7 +14,12 @@ interface VRSceneProps {
   onDone?: (result: { score?: AIScore; duration?: number }) => void;
 }
 
+function proxySlide(url: string) {
+  return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+}
+
 export default function VRScene({ mode, videoUrl, slides = [], sessionId, heartRateRef, onExit, onDone }: VRSceneProps) {
+  slides = slides.map(proxySlide);
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rendererRef = useRef<any>(null);
