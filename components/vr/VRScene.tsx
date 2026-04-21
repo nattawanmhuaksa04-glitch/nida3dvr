@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState, useCallback, type RefObject } from "react";
 import { X, Timer, Layers, Headset, Loader2 } from "lucide-react";
 import type { AIScore } from "@/types";
+import ScoreReport from "@/components/presentation/ScoreReport";
 
 interface VRSceneProps {
   mode: "video" | "presentation";
   videoUrl?: string;
   slides?: string[];
   sessionId?: string;
+  title?: string;
   heartRateRef?: RefObject<number>;
   onExit: () => void;
   onDone?: (result: { score?: AIScore; duration?: number }) => void;
@@ -18,7 +20,7 @@ function proxySlide(url: string) {
   return `/api/proxy-image?url=${encodeURIComponent(url)}`;
 }
 
-export default function VRScene({ mode, videoUrl, slides = [], sessionId, heartRateRef, onExit, onDone }: VRSceneProps) {
+export default function VRScene({ mode, videoUrl, slides = [], sessionId, title = "", heartRateRef, onExit, onDone }: VRSceneProps) {
   slides = slides.map(proxySlide);
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -37,6 +39,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, heartR
   const [xrSupported, setXrSupported] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [videoReady, setVideoReady] = useState(!videoUrl); // true if no video
+  const [scoreOverlay, setScoreOverlay] = useState<{ score: AIScore; duration: number } | null>(null);
 
   // Audio recording
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -151,11 +154,15 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, heartR
     } catch { }
 
     setAnalyzing(false);
-    if (rendererRef.current) {
-      rendererRef.current.setAnimationLoop(null);
-      rendererRef.current.dispose();
+    if (score) {
+      setScoreOverlay({ score, duration });
+    } else {
+      if (rendererRef.current) {
+        rendererRef.current.setAnimationLoop(null);
+        rendererRef.current.dispose();
+      }
+      onDone?.({ score, duration });
     }
-    onDone?.({ score, duration });
   }, [sessionId, slides.length, stopAndTranscribe, onDone]);
 
   // Keep ref in sync so nextSlide can call it without circular dependency
@@ -705,6 +712,36 @@ return (
         <Loader2 size={40} className="animate-spin text-[#3b82f6]" />
         <p className="text-xl font-semibold">Analyzing your presentation...</p>
         <p className="text-sm text-white/60">AI is reviewing your speech with Groq</p>
+      </div>
+    )}
+
+    {/* Score overlay — shown inside VR before exiting */}
+    {scoreOverlay && (
+      <div className="absolute inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-6 overflow-y-auto">
+        <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl border border-slate-100 relative">
+          <div className="p-6">
+            <ScoreReport
+              score={scoreOverlay.score}
+              title={title}
+              duration={scoreOverlay.duration}
+              slideCount={slides.length}
+            />
+          </div>
+          <div className="px-6 pb-6">
+            <button
+              onClick={() => {
+                if (rendererRef.current) {
+                  rendererRef.current.setAnimationLoop(null);
+                  rendererRef.current.dispose();
+                }
+                onDone?.({ score: scoreOverlay.score, duration: scoreOverlay.duration });
+              }}
+              className="w-full py-3 rounded-2xl bg-[#3b82f6] hover:bg-[#2563eb] text-white font-bold text-sm transition-colors"
+            >
+              Done
+            </button>
+          </div>
+        </div>
       </div>
     )}
   </div>

@@ -210,6 +210,7 @@ export default function VRModePage() {
         mode="presentation"
         slides={vrState.slides}
         sessionId={vrState.sessionId}
+        title={vrState.title}
         videoUrl={vrState.videoUrl}
         heartRateRef={hrRef}
         onExit={() => setVrState(null)}
