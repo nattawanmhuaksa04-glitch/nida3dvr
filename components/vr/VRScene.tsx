@@ -717,30 +717,27 @@ return (
 
     {/* Score overlay — shown inside VR before exiting */}
     {scoreOverlay && (
-      <div className="absolute inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-6 overflow-y-auto">
-        <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl border border-slate-100 relative">
-          <div className="p-6">
-            <ScoreReport
-              score={scoreOverlay.score}
-              title={title}
-              duration={scoreOverlay.duration}
-              slideCount={slides.length}
-            />
-          </div>
-          <div className="px-6 pb-6">
-            <button
-              onClick={() => {
-                if (rendererRef.current) {
-                  rendererRef.current.setAnimationLoop(null);
-                  rendererRef.current.dispose();
-                }
-                onDone?.({ score: scoreOverlay.score, duration: scoreOverlay.duration });
-              }}
-              className="w-full py-3 rounded-2xl bg-[#3b82f6] hover:bg-[#2563eb] text-white font-bold text-sm transition-colors"
-            >
-              Done
-            </button>
-          </div>
+      <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-6 overflow-y-auto">
+        <div className="w-full max-w-2xl">
+          <ScoreReport
+            score={scoreOverlay.score}
+            title={title}
+            duration={scoreOverlay.duration}
+            slideCount={slides.length}
+          />
+          <button
+            onClick={() => {
+              if (rendererRef.current) {
+                rendererRef.current.setAnimationLoop(null);
+                rendererRef.current.dispose();
+              }
+              onDone?.({ score: scoreOverlay.score, duration: scoreOverlay.duration });
+            }}
+            className="w-full mt-3 py-3 rounded-2xl font-bold text-sm transition-colors text-white"
+            style={{ background: "linear-gradient(135deg,#6366f1,#a855f7)" }}
+          >
+            Done
+          </button>
         </div>
       </div>
     )}

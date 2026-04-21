@@ -485,19 +485,17 @@ export default function VRModePage() {
 
       {/* Score modal */}
       {scoreResult && (
-        <div className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 relative">
-            <button onClick={() => setScoreResult(null)} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-700 transition-colors z-10">
+        <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-md flex items-center justify-center p-6">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
+            <button onClick={() => setScoreResult(null)} className="absolute top-4 right-4 p-2 rounded-xl z-10 text-white/40 hover:text-white/80 transition-colors">
               <X size={18} />
             </button>
-            <div className="p-6">
-              <ScoreReport
-                score={scoreResult.score}
-                title={scoreResult.title}
-                duration={scoreResult.duration}
-                slideCount={scoreResult.slideCount}
-              />
-            </div>
+            <ScoreReport
+              score={scoreResult.score}
+              title={scoreResult.title}
+              duration={scoreResult.duration}
+              slideCount={scoreResult.slideCount}
+            />
           </div>
         </div>
       )}
