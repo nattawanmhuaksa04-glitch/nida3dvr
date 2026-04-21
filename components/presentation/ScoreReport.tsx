@@ -62,7 +62,7 @@ export default function ScoreReport({ score, title, duration, slideCount }: {
           <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg,#6366f1,#a855f7)" }}>
             <Zap size={13} className="text-white" fill="white" />
           </div>
-          <span className="text-white font-black text-[13px] tracking-wide">NIDA AI COACH</span>
+          <span className="text-white font-black text-[13px] tracking-wide">AI FEEDBACK</span>
           <span className="text-white/30 text-[11px] font-bold">V2.4</span>
         </div>
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)" }}>
@@ -71,119 +71,104 @@ export default function ScoreReport({ score, title, duration, slideCount }: {
         </div>
       </div>
 
-      {/* ── Body ── */}
-      <div className="flex gap-4 p-4 flex-1">
-
-        {/* ── Left: Overall ── */}
-        <div className="w-[240px] shrink-0 rounded-2xl p-4 flex flex-col gap-3"
-          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          <div className="flex items-center gap-3">
-            <ScoreRingLarge value={score.totalScore} />
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 mb-1">
-                <Trophy size={12} className="text-amber-400 shrink-0" />
-                <span className="text-white font-black text-[10px] tracking-widest uppercase">Performance Summary</span>
-              </div>
-              <p className="text-white/55 text-[11px] leading-relaxed line-clamp-5">{score.overallFeedback}</p>
-            </div>
-          </div>
-          <p className="text-white/20 text-[10px] font-medium mt-auto pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-            {title} · {slideCount} slides · {mins}m {secs}s
-          </p>
+      {/* ── Overall Score banner ── */}
+      <div className="relative flex flex-col items-center justify-center px-6 py-5 shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
+        <p className="absolute right-6 top-1/2 -translate-y-1/2 text-white/20 text-[10px] font-medium text-right leading-relaxed">
+          {title}<br />{slideCount} slides · {mins}m {secs}s
+        </p>
+        <ScoreRingLarge value={score.totalScore} />
+        <div className="flex items-center gap-1.5 mt-3 mb-1">
+          <Trophy size={13} className="text-amber-400 shrink-0" />
+          <span className="text-white font-black text-[11px] tracking-widest uppercase">Overall Score</span>
         </div>
-
-        {/* ── Right: breakdown + details ── */}
-        <div className="flex-1 min-w-0 flex flex-col gap-3">
-
-          {/* 4 score cards */}
-          <div className="grid grid-cols-4 gap-3">
-            {breakdown.map(({ label, key, color, glow, accent, border, icon: Icon }) => {
-              const item = score.breakdown[key];
-              return (
-                <div key={key} className="rounded-2xl p-3 flex items-start gap-3"
-                  style={{ background: accent, border: `1px solid ${border}` }}>
-                  <ScoreRingSmall value={item.score} color={color} glow={glow} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1 mb-1">
-                      <Icon size={10} style={{ color }} />
-                      <span className="text-white text-[11px] font-bold">{label}</span>
-                    </div>
-                    <p className="text-white/45 text-[10px] leading-snug line-clamp-3">{item.feedback}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Bottom 3 panels */}
-          <div className="grid grid-cols-3 gap-3 flex-1">
-
-            {/* Filler Words */}
-            <div className="rounded-2xl p-3 flex flex-col" style={{ background: "rgba(244,63,94,0.07)", border: "1px solid rgba(244,63,94,0.15)" }}>
-              <div className="flex items-center gap-2 mb-2">
-                <MessageSquare size={11} className="text-rose-400" />
-                <span className="text-white font-black text-[10px] tracking-widest uppercase">Filler Words</span>
-                {score.fillerWordCount > 0 && (
-                  <span className="ml-auto text-[9px] font-black px-1.5 py-0.5 rounded-full text-rose-300" style={{ background: "rgba(244,63,94,0.2)" }}>
-                    {score.fillerWordCount} total
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {score.fillerWordCount === 0
-                  ? <span className="text-white/30 text-[11px]">ไม่พบคำฟุ่มเฟือย</span>
-                  : Object.entries(score.fillerWordDetail).map(([word, count]) =>
-                      count > 0 && (
-                        <span key={word} className="text-[10px] font-bold px-2 py-0.5 rounded-xl text-rose-300"
-                          style={{ background: "rgba(244,63,94,0.15)", border: "1px solid rgba(244,63,94,0.2)" }}>
-                          {word} <span className="text-rose-500">×{count}</span>
-                        </span>
-                      )
-                    )
-                }
-              </div>
-            </div>
-
-            {/* Key Strengths */}
-            <div className="rounded-2xl p-3 flex flex-col" style={{ background: "rgba(16,185,129,0.07)", border: "1px solid rgba(16,185,129,0.15)" }}>
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle size={11} className="text-emerald-400" />
-                <span className="text-emerald-400 font-black text-[10px] tracking-widest uppercase">Key Strengths</span>
-              </div>
-              <ul className="space-y-1.5">
-                {score.strengths.map((s, i) => (
-                  <li key={i} className="flex items-start gap-2 text-[11px] text-white/65 leading-snug">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1 shrink-0" />
-                    {s}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* To Improve */}
-            <div className="rounded-2xl p-3 flex flex-col" style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.15)" }}>
-              <div className="flex items-center gap-2 mb-2">
-                <AlertCircle size={11} className="text-amber-400" />
-                <span className="text-amber-400 font-black text-[10px] tracking-widest uppercase">To Improve</span>
-              </div>
-              <ul className="space-y-1.5">
-                {score.improvements.map((s, i) => (
-                  <li key={i} className="flex items-start gap-2 text-[11px] text-white/65 leading-snug">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1 shrink-0" />
-                    {s}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-          </div>
-        </div>
+        <p className="text-white/60 text-[13px] leading-relaxed text-center max-w-xl">{score.overallFeedback}</p>
       </div>
 
-      {/* ── Footer ── */}
-      <div className="px-6 py-2 flex items-center justify-between shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-        <span className="text-white/20 text-[9px] font-bold tracking-widest uppercase">NIDA3DVR · Vision Engine V2.4.0</span>
-        <span className="text-white/20 text-[9px] font-bold tracking-widest uppercase">CALL TO HIGHLIGHT · TAB TO SELECT</span>
+      {/* ── Body ── */}
+      <div className="flex flex-col gap-3 p-4 flex-1">
+
+        {/* 4 score cards */}
+        <div className="grid grid-cols-4 gap-3">
+          {breakdown.map(({ label, key, color, glow, accent, border, icon: Icon }) => {
+            const item = score.breakdown[key];
+            return (
+              <div key={key} className="rounded-2xl p-3 flex items-start gap-3"
+                style={{ background: accent, border: `1px solid ${border}` }}>
+                <ScoreRingSmall value={item.score} color={color} glow={glow} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1 mb-1">
+                    <Icon size={10} style={{ color }} />
+                    <span className="text-white text-[11px] font-bold">{label}</span>
+                  </div>
+                  <p className="text-white/45 text-[11px] leading-snug">{item.feedback}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Bottom 3 panels */}
+        <div className="grid grid-cols-3 gap-3 flex-1">
+
+          {/* Filler Words */}
+          <div className="rounded-2xl p-3 flex flex-col" style={{ background: "rgba(244,63,94,0.07)", border: "1px solid rgba(244,63,94,0.15)" }}>
+            <div className="flex items-center gap-2 mb-2">
+              <MessageSquare size={11} className="text-rose-400" />
+              <span className="text-white font-black text-[10px] tracking-widest uppercase">Filler Words</span>
+              {score.fillerWordCount > 0 && (
+                <span className="ml-auto text-[9px] font-black px-1.5 py-0.5 rounded-full text-rose-300" style={{ background: "rgba(244,63,94,0.2)" }}>
+                  {score.fillerWordCount} total
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {score.fillerWordCount === 0
+                ? <span className="text-white/30 text-[11px]">ไม่พบคำฟุ่มเฟือย</span>
+                : Object.entries(score.fillerWordDetail).map(([word, count]) =>
+                    count > 0 && (
+                      <span key={word} className="text-[10px] font-bold px-2 py-0.5 rounded-xl text-rose-300"
+                        style={{ background: "rgba(244,63,94,0.15)", border: "1px solid rgba(244,63,94,0.2)" }}>
+                        {word} <span className="text-rose-500">×{count}</span>
+                      </span>
+                    )
+                  )
+              }
+            </div>
+          </div>
+
+          {/* Key Strengths */}
+          <div className="rounded-2xl p-3 flex flex-col" style={{ background: "rgba(16,185,129,0.07)", border: "1px solid rgba(16,185,129,0.15)" }}>
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle size={11} className="text-emerald-400" />
+              <span className="text-emerald-400 font-black text-[10px] tracking-widest uppercase">Key Strengths</span>
+            </div>
+            <ul className="space-y-1.5">
+              {score.strengths.map((s, i) => (
+                <li key={i} className="flex items-start gap-2 text-[12px] text-white/65 leading-snug">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1 shrink-0" />
+                  {s}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* To Improve */}
+          <div className="rounded-2xl p-3 flex flex-col" style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.15)" }}>
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle size={11} className="text-amber-400" />
+              <span className="text-amber-400 font-black text-[10px] tracking-widest uppercase">To Improve</span>
+            </div>
+            <ul className="space-y-1.5">
+              {score.improvements.map((s, i) => (
+                <li key={i} className="flex items-start gap-2 text-[12px] text-white/65 leading-snug">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1 shrink-0" />
+                  {s}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+        </div>
       </div>
 
     </div>

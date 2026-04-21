@@ -487,8 +487,8 @@ export default function VRModePage() {
       {scoreResult && (
         <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-md flex items-center justify-center p-6">
           <div className="w-full max-w-5xl relative">
-            <button onClick={() => setScoreResult(null)} className="absolute top-4 right-4 p-2 rounded-xl z-10 text-white/40 hover:text-white/80 transition-colors">
-              <X size={18} />
+            <button onClick={() => setScoreResult(null)} className="absolute -top-3 -right-3 p-1.5 rounded-full z-10 text-white/50 hover:text-white transition-colors" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}>
+              <X size={14} />
             </button>
             <ScoreReport
               score={scoreResult.score}
