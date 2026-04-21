@@ -486,7 +486,7 @@ export default function VRModePage() {
       {/* Score modal */}
       {scoreResult && (
         <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-md flex items-center justify-center p-6">
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
+          <div className="w-full max-w-5xl relative">
             <button onClick={() => setScoreResult(null)} className="absolute top-4 right-4 p-2 rounded-xl z-10 text-white/40 hover:text-white/80 transition-colors">
               <X size={18} />
             </button>
