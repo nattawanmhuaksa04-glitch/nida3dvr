@@ -49,6 +49,15 @@ export async function POST(req: NextRequest) {
     score.fillerWordDetail = filtered;
     score.fillerWordCount = Object.values(filtered).reduce((a, b) => a + b, 0);
 
+    // Overwrite fillerWords feedback to match the actual filtered count
+    if (score.breakdown?.fillerWords) {
+      const count = score.fillerWordCount;
+      const wordsStr = count > 0
+        ? `พบคำฟุ่มเฟือย ${count} คำ: ${Object.entries(filtered).filter(([,v])=>v>0).map(([k,v])=>`${k} (${v})`).join(", ")}`
+        : "ไม่พบคำฟุ่มเฟือย";
+      score.breakdown.fillerWords.feedback = wordsStr;
+    }
+
     // Save score to session — don't fail the whole request if Redis is down
     if (sessionId) {
       try {
