@@ -150,7 +150,6 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
       const recorder = new MediaRecorder(stream, { mimeType });
       audioChunksRef.current = [];
       pendingTranscriptsRef.current = [];
-      slideChangesRef.current = [];
       recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
       recorder.start(1000);
       mediaRecorderRef.current = recorder;
@@ -697,6 +696,8 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
     // Start audio recording for presentation
     if (mode === "presentation") {
       startTimeRef.current = Date.now();
+      // Record slide 0 as the starting slide so coverage count includes first slide
+      slideChangesRef.current = [{ slideNumber: 0, timestamp: 0 }];
       startAudioRecording();
     }
 
