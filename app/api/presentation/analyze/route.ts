@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { analyzePresentation, fallbackScore } from "@/lib/gemini";
+import { analyzePresentation, fallbackScore, countFillerWords } from "@/lib/gemini";
 import redis from "@/lib/redis";
-
-const ALLOWED_FILLER_KEYS = ["เออ", "อืม", "แบบว่า", "อ่า", "คือ", "ประมาณว่า"];
 
 // Sanitize Llama output: strip CJK, HTML entities, and stray Latin/symbol injections mid-Thai-word
 function sanitizeText(text: string): string {
@@ -40,12 +38,8 @@ export async function POST(req: NextRequest) {
     score.strengths    = (score.strengths ?? []).map(sanitizeText);
     score.improvements = (score.improvements ?? []).map(sanitizeText);
 
-    // Strip filler word keys that are outside the allowed Thai list
-    const rawDetail: Record<string, number> = score.fillerWordDetail ?? {};
-    const filtered: Record<string, number> = {};
-    for (const key of ALLOWED_FILLER_KEYS) {
-      if (key in rawDetail && typeof rawDetail[key] === "number") filtered[key] = rawDetail[key];
-    }
+    // Override filler counts with server-side regex count (not LLM guesses)
+    const filtered = countFillerWords(transcript ?? "");
     score.fillerWordDetail = filtered;
     score.fillerWordCount = Object.values(filtered).reduce((a, b) => a + b, 0);
 

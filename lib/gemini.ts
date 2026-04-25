@@ -27,6 +27,24 @@ function calcCoverageScore(slideChanges: { slideNumber: number }[], slideCount: 
   return { score: 2, feedback: `นำเสนอ ${unique}/${slideCount} สไลด์ (${Math.round(pct*100)}%) — แทบไม่ได้นำเสนอ` };
 }
 
+const FILLER_PATTERNS: Record<string, RegExp> = {
+  "เออ":        /เออ/g,
+  "อืม":        /อืม/g,
+  "แบบว่า":     /แบบว่า/g,
+  "อ่า":        /อ่า/g,
+  "คือ":        /(?<![ก-๛])คือ(?![ก-๛])/g,
+  "ประมาณว่า":  /ประมาณว่า/g,
+};
+
+export function countFillerWords(transcript: string): Record<string, number> {
+  const result: Record<string, number> = {};
+  for (const [word, pattern] of Object.entries(FILLER_PATTERNS)) {
+    const matches = transcript.match(pattern);
+    result[word] = matches ? matches.length : 0;
+  }
+  return result;
+}
+
 export async function analyzePresentation(input: AnalyzeInput): Promise<AIScore> {
   const { transcript, duration, slideCount, slideChanges } = input;
 
@@ -36,6 +54,14 @@ export async function analyzePresentation(input: AnalyzeInput): Promise<AIScore>
   }
 
   const avgTimePerSlide = slideCount > 0 ? Math.round(duration / slideCount) : 0;
+
+  // Count filler words from transcript directly — don't let Llama count them
+  const preCountedFillers = countFillerWords(transcript);
+  const totalFillers = Object.values(preCountedFillers).reduce((a, b) => a + b, 0);
+  const fillerSummary = totalFillers > 0
+    ? Object.entries(preCountedFillers).filter(([, v]) => v > 0).map(([k, v]) => `${k} (${v})`).join(", ")
+    : "ไม่พบคำฟุ่มเฟือย";
+
   const prompt = `คุณเป็น Public Speaking Coach ผู้เชี่ยวชาญ วิเคราะห์การนำเสนอนี้อย่างละเอียด
 
 ## ข้อมูลการนำเสนอ
@@ -44,14 +70,18 @@ export async function analyzePresentation(input: AnalyzeInput): Promise<AIScore>
 - เวลาเฉลี่ยต่อสไลด์: ${avgTimePerSlide} วินาที
 - จำนวนการเปลี่ยนสไลด์: ${slideChanges.length}
 
-## Transcript (RAW - เก็บคำฟุ่มเฟือยทั้งหมด)
+## ผลการนับคำฟุ่มเฟือย (นับแล้วโดย system — ใช้ตัวเลขนี้เท่านั้น อย่านับใหม่)
+- รวม: ${totalFillers} คำ
+- รายละเอียด: ${fillerSummary}
+
+## Transcript (RAW)
 ${transcript}
 
 ## เกณฑ์การให้คะแนน (ต้องทำตาม rubric นี้เท่านั้น)
 
 ### 1. คำฟุ่มเฟือย /25
 - 0 คำ = 25, 1-2 คำ = 20, 3-5 คำ = 15, 6-10 คำ = 10, >10 คำ = 5
-- **นับเฉพาะคำที่ปรากฏใน Transcript จริงเท่านั้น ห้ามสมมติ**
+- **ใช้จำนวน ${totalFillers} คำ จากข้อมูลด้านบน — ห้ามนับใหม่จาก Transcript**
 
 ### 2. ความลื่นไหล (Fluency) /25
 - พูดต่อเนื่อง ไม่หยุดกลางประโยค = 21-25
@@ -74,10 +104,10 @@ ${transcript}
 {
   "totalScore": <number 0-100>,
   "fluencyScore": <number 1-10>,
-  "fillerWordCount": <number>,
-  "fillerWordDetail": { "เออ": <count>, "อืม": <count>, "แบบว่า": <count>, "อ่า": <count>, "คือ": <count>, "ประมาณว่า": <count> },
+  "fillerWordCount": ${totalFillers},
+  "fillerWordDetail": ${JSON.stringify(preCountedFillers)},
   "breakdown": {
-    "fillerWords": { "score": <0-25>, "feedback": "<Thai text>" },
+    "fillerWords": { "score": <0-25>, "feedback": "<Thai text สรุปผลคำฟุ่มเฟือย>" },
     "fluency": { "score": <0-25>, "feedback": "<Thai text>" },
     "structure": { "score": <0-25>, "feedback": "<Thai text>" },
     "timeManagement": { "score": <0-25>, "feedback": "<Thai text>" }
