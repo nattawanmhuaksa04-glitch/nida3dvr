@@ -6,7 +6,7 @@ export async function transcribeAudio(audioBlob: Blob, filename = "recording.web
   formData.append("response_format", "verbose_json");
   formData.append(
     "prompt",
-    "ถอดความตามที่พูดจริงทั้งหมด รวมถึงคำฟุ่มเฟือย เช่น เออ อืม แบบว่า อ่า คือ ประมาณว่า นะครับ นะคะ"
+    "ถอดความภาษาไทยตามที่พูดจริงทุกคำ ห้ามเพิ่มหรือสรุปเอง"
   );
 
   const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
@@ -20,11 +20,13 @@ export async function transcribeAudio(audioBlob: Blob, filename = "recording.web
     throw new Error(`Groq Whisper error: ${err}`);
   }
 
-  const data = await res.json();
-  const segments: { text: string; no_speech_prob: number }[] = data.segments ?? [];
+  const data = await res.json().catch(() => null);
+  if (!data) throw new Error("Groq Whisper returned non-JSON");
 
-  // Filter out segments where Whisper is confident there's no speech
-  const speechSegments = segments.filter(s => s.no_speech_prob < 0.6);
+  const segments: { text: string; no_speech_prob?: number }[] = Array.isArray(data.segments) ? data.segments : [];
+
+  // Filter out segments where Whisper is confident there's no speech (no_speech_prob >= 0.6)
+  const speechSegments = segments.filter(s => (s.no_speech_prob ?? 0) < 0.6);
 
   if (speechSegments.length === 0) return "";
 

@@ -47,6 +47,14 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
   const startTimeRef = useRef<number>(Date.now());
   const isEndingRef = useRef(false);
   const endPresentationRef = useRef<() => void>(() => { });
+  const slideChangesRef = useRef<{ slideNumber: number; timestamp: number }[]>([]);
+
+  // Chunked transcription — background transcribe every CHUNK_MS
+  const CHUNK_MS = 3 * 60 * 1000; // 3 minutes
+  const chunkTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingTranscriptsRef = useRef<Promise<string>[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const mimeTypeRef = useRef<string>("audio/webm");
 
   const updateSlide = useCallback((index: number) => {
     if (!slideMeshRef.current || !slides[index]) return;
@@ -65,6 +73,13 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
     });
   }, [slides]);
 
+  const recordSlideChange = useCallback((slideNumber: number) => {
+    slideChangesRef.current.push({
+      slideNumber,
+      timestamp: Math.floor((Date.now() - startTimeRef.current) / 1000),
+    });
+  }, []);
+
   const nextSlide = useCallback(() => {
     if (mode !== "presentation") return;
     if (currentSlideRef.current >= slides.length - 1) {
@@ -74,50 +89,110 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
     const next = currentSlideRef.current + 1;
     currentSlideRef.current = next;
     setCurrentSlideIdx(next);
-  }, [mode, slides.length]);
+    recordSlideChange(next);
+  }, [mode, slides.length, recordSlideChange]);
 
   const prevSlide = useCallback(() => {
     if (mode !== "presentation") return;
     const prev = Math.max(currentSlideRef.current - 1, 0);
     currentSlideRef.current = prev;
     setCurrentSlideIdx(prev);
-  }, [mode]);
+    recordSlideChange(prev);
+  }, [mode, recordSlideChange]);
+
+  // Transcribe a blob in background, returns promise of transcript text
+  const transcribeBlob = useCallback((blob: Blob): Promise<string> => {
+    return (async () => {
+      try {
+        const fd = new FormData();
+        fd.append("audio", blob, "recording.webm");
+        const res = await fetch("/api/presentation/transcribe", { method: "POST", body: fd });
+        const data = await res.json();
+        return (data.transcript as string) || "";
+      } catch { return ""; }
+    })();
+  }, []);
+
+  // Rotate chunk: stop current recorder, start new one, kick off background transcription
+  const rotateChunk = useCallback(() => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state === "inactive") return;
+    const mimeType = mimeTypeRef.current;
+
+    recorder.onstop = () => {
+      // Capture ALL chunks including the final ondataavailable fired by stop()
+      const blob = new Blob(audioChunksRef.current, { type: mimeType });
+      audioChunksRef.current = []; // reset AFTER capturing to avoid losing last chunk
+      pendingTranscriptsRef.current.push(transcribeBlob(blob));
+
+      // Start fresh recorder on same stream
+      const stream = streamRef.current;
+      if (!stream) return;
+      const next = new MediaRecorder(stream, { mimeType });
+      next.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      next.start(1000);
+      mediaRecorderRef.current = next;
+
+      // Schedule next rotation
+      chunkTimerRef.current = setTimeout(rotateChunk, CHUNK_MS);
+    };
+    recorder.stop();
+  }, [transcribeBlob, CHUNK_MS]);
 
   const startAudioRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
         : "audio/webm";
+      mimeTypeRef.current = mimeType;
       const recorder = new MediaRecorder(stream, { mimeType });
       audioChunksRef.current = [];
+      pendingTranscriptsRef.current = [];
+      slideChangesRef.current = [];
       recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
       recorder.start(1000);
       mediaRecorderRef.current = recorder;
+      // Schedule first chunk rotation
+      chunkTimerRef.current = setTimeout(rotateChunk, CHUNK_MS);
     } catch {
       console.warn("Mic unavailable");
     }
-  }, []);
+  }, [rotateChunk, CHUNK_MS]);
 
   const stopAndTranscribe = useCallback((): Promise<string> => {
+    // Cancel pending rotation timer — must happen BEFORE stopping recorder
+    // to prevent rotateChunk's onstop from starting a new recorder
+    if (chunkTimerRef.current) {
+      clearTimeout(chunkTimerRef.current);
+      chunkTimerRef.current = null;
+    }
     return new Promise((resolve) => {
       const recorder = mediaRecorderRef.current;
-      if (!recorder || recorder.state === "inactive") { resolve(""); return; }
+      if (!recorder || recorder.state === "inactive") {
+        // rotateChunk may have already stopped this recorder and started a new one
+        // wait for all background transcriptions to finish
+        Promise.all(pendingTranscriptsRef.current).then((parts) => {
+          resolve(parts.filter(Boolean).join(" ").trim());
+        });
+        return;
+      }
+      // Nullify the recorder ref immediately so rotateChunk's onstop (if racing)
+      // cannot start a new recorder after we take over
+      mediaRecorderRef.current = null;
       recorder.onstop = async () => {
-        const mimeType = recorder.mimeType || "audio/webm";
+        const mimeType = mimeTypeRef.current;
         const blob = new Blob(audioChunksRef.current, { type: mimeType });
-        recorder.stream.getTracks().forEach((t) => t.stop());
-        try {
-          const fd = new FormData();
-          fd.append("audio", blob, "recording.webm");
-          const res = await fetch("/api/presentation/transcribe", { method: "POST", body: fd });
-          const data = await res.json();
-          resolve(data.transcript || "");
-        } catch { resolve(""); }
+        streamRef.current?.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        const finalPromise = transcribeBlob(blob);
+        const parts = await Promise.all([...pendingTranscriptsRef.current, finalPromise]);
+        resolve(parts.filter(Boolean).join(" ").trim());
       };
       recorder.stop();
     });
-  }, []);
+  }, [transcribeBlob]);
 
   const endPresentation = useCallback(async () => {
     if (isEndingRef.current) return;
@@ -144,7 +219,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
           transcript,
           duration,
           slideCount: slides.length,
-          slideChanges: [],
+          slideChanges: slideChangesRef.current,
         }),
       });
       if (res.ok) {
@@ -248,15 +323,15 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
         videoTexture.minFilter = THREE.LinearFilter;
         videoTexture.magFilter = THREE.LinearFilter;
         videoTexture.generateMipmaps = false;
-        videoTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        videoTexture.anisotropy = 1; // anisotropy on a sphere has no benefit, costs GPU
         videoTexture.wrapS = THREE.ClampToEdgeWrapping;
 
         // Left eye — offset switches to 0.5 for right eye in onBeforeRender
         videoTexture.repeat.set(0.5, 1);
         videoTexture.offset.set(0, 0);
 
-        // Hemisphere 180° — same approach as VideoPlayer180
-        const geo = new THREE.SphereGeometry(500, 48, 32, Math.PI / 2, Math.PI);
+        // Hemisphere 180° — 64×32 segments: enough for smooth curve, not wasteful
+        const geo = new THREE.SphereGeometry(500, 64, 32, Math.PI / 2, Math.PI);
         geo.scale(-1, 1, 1);
 
         const mat = new THREE.MeshBasicMaterial({
@@ -591,9 +666,23 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
     // HR display — fn assigned inside loader callback
     const hrDisplay = { fn: null as (() => void) | null };
 
-    // Animation loop
-    renderer.setAnimationLoop(() => {
-      hrDisplay.fn?.();
+    // Animation loop — throttle HR canvas to once per second to avoid redraw overhead
+    let lastHrUpdate = 0;
+    renderer.setAnimationLoop((time: number) => {
+      if (hrDisplay.fn && time - lastHrUpdate > 1000) {
+        hrDisplay.fn();
+        lastHrUpdate = time;
+      }
+      // VideoTexture requires manual needsUpdate each frame to decode & upload new video frames
+      if (videoUrl) {
+        scene.traverse((obj) => {
+          const mesh = obj as import("three").Mesh;
+          if (mesh.isMesh) {
+            const mat = mesh.material as import("three").MeshBasicMaterial;
+            if (mat?.map instanceof THREE.VideoTexture) mat.map.needsUpdate = true;
+          }
+        });
+      }
       renderer.render(scene, camera);
     });
 
