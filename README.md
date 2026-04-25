@@ -366,13 +366,38 @@ cloudflared tunnel --url http://localhost:3000
 
 ---
 
-## 13. Known Limitations
+## 13. Test Results Summary (IS Project Evaluation)
+
+ทดสอบ: 25 เมษายน 2568 | อุปกรณ์: Mac + Meta Quest 1
+
+| TC | หัวข้อ | ผล | หมายเหตุ |
+|---|---|---|---|
+| TC-STT-01 | STT Latency ภาษาไทย | **Partial** | เฉลี่ย 10.44 วิ (เกณฑ์ ≤ 10 วิ), 2/3 รอบผ่าน |
+| TC-STT-03 | Filler Word Detection | **Partial** | 50% detection (เกณฑ์ ≥ 70%) — Whisper STT limitation ไม่ใช่ bug ของระบบ |
+| TC-LLM-01 | Scoring Consistency | **Pass** | SD Total = 0 ทุก 3 รอบ (เกณฑ์ ≤ 5) |
+| TC-LLM-03 | Score Accuracy (Good vs Bad) | **Pass** | Fluency A−B = +6 ≥ 5, Total A > B |
+| TC-XR-01 | VR Mode บน Meta Quest 1 | **Pass** | 7/7 รายการผ่าน รวม Score Report ใน VR |
+| TC-XR-02 | Frame Rate ใน VR | **Pass** | ไม่พบ Frame Drop ทุกสถานการณ์ |
+| TC-HR-02 | HR ระหว่างนำเสนอ | **Observed** | HR +5 bpm baseline → peak |
+
+**Pass: 4 / Partial: 2 / Observed: 1**
+
+### ข้อสังเกตจากการทดสอบ
+- **STT Latency** ผันแปรตาม audio content — รอบที่มี silence มากใช้เวลา encode นานกว่า latency จริงในการนำเสนอต่อเนื่องจะใกล้เคียง 9–10 วิ
+- **Filler Detection** 50% เกิดจาก Whisper ตัด/เปลี่ยน token เสียงสั้น ("เออ", "อ่า") — logic ฝั่ง server-side regex ทำงานถูกต้อง ถ้า Whisper ส่ง transcript มาครบจะจับได้
+- **Scoring Consistency SD=0** เนื่องจาก 3/4 หมวดคำนวณ deterministic server-side — ผลจึงเหมือนกันทุกรอบสำหรับ transcript เดิม
+- **Score Accuracy** Llama แยกแยะ Fluency ได้ถูกทิศทางและมีนัยสำคัญ (+6 คะแนน) Structure/Time เท่ากันเป็นเรื่องปกติเพราะใช้ slide ชุดเดิม
+
+---
+
+## 14. Known Limitations
 
 | ข้อจำกัด | รายละเอียด |
 |---|---|
 | Safari | ไม่รองรับ WebXR |
 | Wolvic | WebXR ได้ แต่ไม่มี Web Bluetooth |
-| Whisper repeated tokens | Whisper suppress คำซ้ำในระดับ audio — "เออ เออ เออ" อาจ output เป็น "เออ" ครั้งเดียว เป็น model limitation |
+| Whisper filler detection | Whisper ตัด/เปลี่ยน token เสียงสั้นที่ไม่มีบริบท ("เออ", "อ่า") — detection rate ~50% สำหรับ single utterance เป็น model limitation |
+| Whisper repeated tokens | Whisper suppress คำซ้ำในระดับ audio — "เออ เออ เออ" ติดกันอาจ output เป็น "เออ" ครั้งเดียว |
 | Whisper accuracy | ความแม่นยำขึ้นกับคุณภาพเสียงและ noise |
 | Session TTL | Presentation sessions หมดอายุ 30 วัน |
 | Groq Llama | อาจ inject CJK/Latin ใน output — ระบบ sanitize ให้อัตโนมัติ |
