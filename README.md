@@ -98,41 +98,51 @@ Groq Whisper verbose_json
   → filter segments: no_speech_prob ≥ 0.6 ออก
   → ถ้า transcript < 20 ตัวอักษร → Fallback score
   ↓
+Server: countFillerWords() — นับจาก transcript ด้วย regex (ไม่ใช้ LLM นับ)
+  ↓
 Groq Llama 3.3-70b-versatile (temperature 0.3)
-  → วิเคราะห์ตาม rubric ที่กำหนด
+  → รับ filler count pre-computed + transcript
+  → วิเคราะห์เฉพาะ Fluency + feedback text
+  ↓
+Server: override scores ด้วย deterministic functions
+  → fillerWords  ← countFillerWords() regex
+  → timeManagement ← calcTimeScore(duration/slideCount)
+  → structure    ← calcCoverageScore(slideChanges, slideCount)
+  → totalScore   ← บวก breakdown 4 หมวดจริงๆ
   ↓
 Sanitize output
   → strip CJK / HTML entities / Latin-in-Thai
-  → filter filler keys นอก schema ออก
   → Redis ล้มก็ยัง return score ได้
   ↓
 Score Report
 ```
 
-### 4.2 Scoring Rubric
+### 4.2 Scoring Rubric (รวม 100 คะแนน)
 
-**กรณีมี transcript (AI) — รวม 100 คะแนน**
+| หมวด | /25 | วิธีคำนวณ | เกณฑ์ |
+|---|---|---|---|
+| Filler Words | /25 | **Server regex** | 0คำ=25, 1-2=20, 3-5=15, 6-10=10, >10=5 |
+| Fluency | /25 | **Llama** | พูดต่อเนื่อง=21-25, หยุดนิดหน่อย=15-20, หยุดบ่อย=8-14, ไม่ลื่น=1-7 |
+| Structure | /25 | **Server: slide coverage** | 100%สไลด์=25, 75-99%=18, 50-74%=12, 25-49%=6, <25%=2 |
+| Time Mgmt | /25 | **Server: duration/slideCount** | 45-90วิ/สไลด์=25, 30-44=20, 91-120=18, 15-29=12, 121-180=10, นอกนั้น=5 |
 
-| หมวด | /25 | เกณฑ์ |
-|---|---|---|
-| Filler Words | /25 | 0คำ=25, 1-2=20, 3-5=15, 6-10=10, >10=5 |
-| Fluency | /25 | พูดต่อเนื่อง=21-25, หยุดนิดหน่อย=15-20, หยุดบ่อย=8-14, ไม่ลื่น=1-7 |
-| Structure | /25 | ครบ intro+body+conclusion=21-25, บางส่วน=12-20, ขาด=1-11 |
-| Time Mgmt | /25 | 45-90วิ/สไลด์=25, 30-44=20, 91-120=18, 15-29=12, 121-180=10, นอกนั้น=5 |
+> Llama ให้คะแนนเฉพาะ **Fluency** เท่านั้น — หมวดอื่นคำนวณ server-side ทั้งหมด
 
 **กรณีไม่มีเสียง (Fallback) — รวมสูงสุด 50 คะแนน**
 
 | หมวด | เกณฑ์ |
 |---|---|
-| Time Management | เหมือนด้านบน (วัดจาก duration/slideCount) |
-| Slide Coverage | 100%=25, 75-99%=18, 50-74%=12, 25-49%=6, <25%=2 |
+| Time Management | เหมือนด้านบน |
+| Slide Coverage | เหมือนด้านบน |
+| Filler / Fluency | 0 (ไม่มีเสียงให้วิเคราะห์) |
 
 ### 4.3 Hallucination Guards
 - Whisper: `no_speech_prob ≥ 0.6` → ตัด segment ออก
 - Transcript < 20 ตัวอักษร → ข้าม Llama ใช้ fallback ทันที
-- Llama prompt: มี rubric ชัดเจน + "ห้ามสมมติคำฟุ่มเฟือย"
-- Server: filter filler keys นอก 6 คำที่กำหนด (เออ/อืม/แบบว่า/อ่า/คือ/ประมาณว่า)
-- Server: sanitizeText ตัด CJK, HTML entities, Latin แทรกกลาง Thai
+- Filler count: นับด้วย regex server-side — inject เข้า prompt + override หลัง Llama ตอบ
+- Time / Structure: คำนวณ deterministic server-side เสมอ — Llama ไม่สามารถเปลี่ยนได้
+- Total score: บวกจาก breakdown จริง ไม่ใช้ค่าที่ Llama ส่งมา
+- sanitizeText: ตัด CJK, HTML entities, Latin แทรกกลาง Thai จากทุก text field
 
 ---
 
@@ -362,6 +372,7 @@ cloudflared tunnel --url http://localhost:3000
 |---|---|
 | Safari | ไม่รองรับ WebXR |
 | Wolvic | WebXR ได้ แต่ไม่มี Web Bluetooth |
+| Whisper repeated tokens | Whisper suppress คำซ้ำในระดับ audio — "เออ เออ เออ" อาจ output เป็น "เออ" ครั้งเดียว เป็น model limitation |
 | Whisper accuracy | ความแม่นยำขึ้นกับคุณภาพเสียงและ noise |
 | Session TTL | Presentation sessions หมดอายุ 30 วัน |
 | Groq Llama | อาจ inject CJK/Latin ใน output — ระบบ sanitize ให้อัตโนมัติ |
