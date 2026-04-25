@@ -7,7 +7,7 @@ interface AnalyzeInput {
   slideChanges: { slideNumber: number; timestamp: number }[];
 }
 
-function calcTimeScore(avgTime: number): { score: number; feedback: string } {
+export function calcTimeScore(avgTime: number): { score: number; feedback: string } {
   if (avgTime >= 45 && avgTime <= 90)  return { score: 25, feedback: `เวลาเฉลี่ยต่อสไลด์ ${Math.round(avgTime)} วินาที — เหมาะสมที่สุด` };
   if (avgTime >= 30 && avgTime < 45)   return { score: 20, feedback: `เวลาเฉลี่ยต่อสไลด์ ${Math.round(avgTime)} วินาที — ดี แต่เร็วเล็กน้อย` };
   if (avgTime > 90 && avgTime <= 120)  return { score: 18, feedback: `เวลาเฉลี่ยต่อสไลด์ ${Math.round(avgTime)} วินาที — ดี แต่ช้าเล็กน้อย` };
@@ -16,7 +16,7 @@ function calcTimeScore(avgTime: number): { score: number; feedback: string } {
   return { score: 5, feedback: `เวลาเฉลี่ยต่อสไลด์ ${Math.round(avgTime)} วินาที — ผิดปกติ (สั้นหรือยาวเกินไป)` };
 }
 
-function calcCoverageScore(slideChanges: { slideNumber: number }[], slideCount: number): { score: number; feedback: string } {
+export function calcCoverageScore(slideChanges: { slideNumber: number }[], slideCount: number): { score: number; feedback: string } {
   if (slideCount === 0) return { score: 0, feedback: "ไม่มีสไลด์" };
   const unique = new Set(slideChanges.map(c => c.slideNumber)).size;
   const pct = unique / slideCount;

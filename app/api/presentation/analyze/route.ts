@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { analyzePresentation, fallbackScore, countFillerWords } from "@/lib/gemini";
+import { analyzePresentation, fallbackScore, countFillerWords, calcTimeScore, calcCoverageScore } from "@/lib/gemini";
 import redis from "@/lib/redis";
 
 // Sanitize Llama output: strip CJK, HTML entities, and stray Latin/symbol injections mid-Thai-word
@@ -43,13 +43,36 @@ export async function POST(req: NextRequest) {
     score.fillerWordDetail = filtered;
     score.fillerWordCount = Object.values(filtered).reduce((a, b) => a + b, 0);
 
-    // Overwrite fillerWords feedback to match the actual filtered count
     if (score.breakdown?.fillerWords) {
       const count = score.fillerWordCount;
       const wordsStr = count > 0
         ? `พบคำฟุ่มเฟือย ${count} คำ: ${Object.entries(filtered).filter(([,v])=>v>0).map(([k,v])=>`${k} (${v})`).join(", ")}`
         : "ไม่พบคำฟุ่มเฟือย";
       score.breakdown.fillerWords.feedback = wordsStr;
+    }
+
+    // Override time management score with deterministic rubric (Llama ignores rubric)
+    const avgTime = slideCount > 0 ? duration / slideCount : 0;
+    const timeResult = calcTimeScore(avgTime);
+    if (score.breakdown?.timeManagement) {
+      score.breakdown.timeManagement.score = timeResult.score;
+      score.breakdown.timeManagement.feedback = timeResult.feedback;
+    }
+
+    // Override structure score with slide coverage (deterministic)
+    const coverageResult = calcCoverageScore(slideChanges ?? [], slideCount ?? 0);
+    if (score.breakdown?.structure) {
+      score.breakdown.structure.score = coverageResult.score;
+      score.breakdown.structure.feedback = coverageResult.feedback;
+    }
+
+    // Recalculate totalScore from actual breakdown values
+    if (score.breakdown) {
+      score.totalScore =
+        (score.breakdown.fillerWords?.score ?? 0) +
+        (score.breakdown.fluency?.score ?? 0) +
+        (score.breakdown.structure?.score ?? 0) +
+        (score.breakdown.timeManagement?.score ?? 0);
     }
 
     // Save score to session — don't fail the whole request if Redis is down
