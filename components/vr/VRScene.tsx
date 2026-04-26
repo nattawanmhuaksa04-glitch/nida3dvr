@@ -438,6 +438,9 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
         renderer.xr.addEventListener("sessionend", () => { exitBtn.visible = false; });
       }
 
+    // Gamepad state — declared here so setAnimationLoop (outside if block) can access it
+    const gamepadState: Record<string, Record<string, unknown>> = {};
+
     // Presentation slide screen
     if (mode === "presentation" && slides.length > 0) {
       const distance = 5;
@@ -620,40 +623,6 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
         ctrl2.add(laser2);
       });
 
-      // Gamepad polling (uses stable callback refs, no dependency on slideW/slideH)
-      const gamepadState: Record<string, Record<string, unknown>> = {};
-      const pollGamepad = () => {
-        if (!renderer.xr.isPresenting) { requestAnimationFrame(pollGamepad); return; }
-        const session = renderer.xr.getSession();
-        if (!session) { requestAnimationFrame(pollGamepad); return; }
-        session.inputSources.forEach((src, i) => {
-          if (!src.gamepad) return;
-          const key = `c${i}`;
-          if (!gamepadState[key]) gamepadState[key] = {};
-          const state = gamepadState[key];
-          src.gamepad.buttons.forEach((btn, bi) => {
-            const wasPressed = !!state[`b${bi}`];
-            if (btn.pressed && !wasPressed) {
-              if (bi === 4) prevSlideRef.current();
-              else if (bi === 5) nextSlideRef.current();
-              else if (bi === 0) nextSlideRef.current();
-              else if (bi === 1) {
-                if (!state.gripStart) state.gripStart = Date.now();
-              }
-            }
-            if (bi === 1 && btn.pressed && state.gripStart) {
-              if (Date.now() - (state.gripStart as number) > 1000) {
-                endPresentationRef.current();
-                state.gripStart = null;
-              }
-            }
-            if (bi === 1 && !btn.pressed) state.gripStart = null;
-            state[`b${bi}`] = btn.pressed;
-          });
-        });
-        requestAnimationFrame(pollGamepad);
-      };
-      pollGamepad();
     }
 
     // Keyboard shortcuts
@@ -667,7 +636,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
     // HR display — fn assigned inside loader callback
     const hrDisplay = { fn: null as (() => void) | null };
 
-    // Animation loop — throttle HR canvas to once per second to avoid redraw overhead
+    // Animation loop — runs in both normal and XR mode
     let lastHrUpdate = 0;
     renderer.setAnimationLoop((time: number) => {
       if (hrDisplay.fn && time - lastHrUpdate > 1000) {
@@ -686,6 +655,37 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
             }
           }
         });
+      }
+      // Gamepad polling inside XR loop — requestAnimationFrame doesn't fire in XR
+      if (mode === "presentation" && renderer.xr.isPresenting) {
+        const session = renderer.xr.getSession();
+        if (session) {
+          session.inputSources.forEach((src, i) => {
+            if (!src.gamepad) return;
+            const key = `c${i}`;
+            if (!gamepadState[key]) gamepadState[key] = {};
+            const state = gamepadState[key];
+            src.gamepad.buttons.forEach((btn, bi) => {
+              const wasPressed = !!state[`b${bi}`];
+              if (btn.pressed && !wasPressed) {
+                if (bi === 4) prevSlideRef.current();
+                else if (bi === 5) nextSlideRef.current();
+                else if (bi === 0) nextSlideRef.current();
+                else if (bi === 1) {
+                  if (!state.gripStart) state.gripStart = Date.now();
+                }
+              }
+              if (bi === 1 && btn.pressed && state.gripStart) {
+                if (Date.now() - (state.gripStart as number) > 1000) {
+                  endPresentationRef.current();
+                  state.gripStart = null;
+                }
+              }
+              if (bi === 1 && !btn.pressed) state.gripStart = null;
+              state[`b${bi}`] = btn.pressed;
+            });
+          });
+        }
       }
       renderer.render(scene, camera);
     });
