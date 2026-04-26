@@ -197,9 +197,9 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
     if (isEndingRef.current) return;
     isEndingRef.current = true;
 
-    // Exit VR session first so HTML overlay is visible
+    // Exit VR session — fire-and-forget (await can hang on Quest)
     try {
-      await rendererRef.current?.xr.getSession()?.end();
+      rendererRef.current?.xr.getSession()?.end();
     } catch { }
 
     setAnalyzing(true);
