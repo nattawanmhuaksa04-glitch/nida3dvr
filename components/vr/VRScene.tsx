@@ -200,8 +200,8 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
     if (isEndingRef.current) return;
     isEndingRef.current = true;
 
-    // Exit VR first so browser UI is visible during analysis
-    try { await rendererRef.current?.xr.getSession()?.end(); } catch { }
+    // Exit VR — fire and forget, don't await (Quest can hang on await end())
+    try { rendererRef.current?.xr.getSession()?.end(); } catch { }
 
     setAnalyzing(true);
     const duration = Math.floor((Date.now() - startTimeRef.current) / 1000);
