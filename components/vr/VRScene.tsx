@@ -22,7 +22,6 @@ function proxySlide(url: string) {
 
 export default function VRScene({ mode, videoUrl, slides = [], sessionId, title = "", heartRateRef, onExit, onDone }: VRSceneProps) {
   slides = slides.map(proxySlide);
-  const rootRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rendererRef = useRef<any>(null);
@@ -48,8 +47,6 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
   const startTimeRef = useRef<number>(Date.now());
   const isEndingRef = useRef(false);
   const endPresentationRef = useRef<() => void>(() => { });
-  const nextSlideRef = useRef<() => void>(() => { });
-  const prevSlideRef = useRef<() => void>(() => { });
   const slideChangesRef = useRef<{ slideNumber: number; timestamp: number }[]>([]);
 
   // Chunked transcription — background transcribe every CHUNK_MS
@@ -153,6 +150,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
       const recorder = new MediaRecorder(stream, { mimeType });
       audioChunksRef.current = [];
       pendingTranscriptsRef.current = [];
+      slideChangesRef.current = [];
       recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
       recorder.start(1000);
       mediaRecorderRef.current = recorder;
@@ -200,14 +198,17 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
     if (isEndingRef.current) return;
     isEndingRef.current = true;
 
-    // Exit VR — fire and forget, don't await (Quest can hang on await end())
-    try { rendererRef.current?.xr.getSession()?.end(); } catch { }
+    // Exit VR session first so HTML overlay is visible
+    try {
+      await rendererRef.current?.xr.getSession()?.end();
+    } catch { }
 
     setAnalyzing(true);
     const duration = Math.floor((Date.now() - startTimeRef.current) / 1000);
 
     const transcript = await stopAndTranscribe();
 
+    // Call Gemini analyze
     let score: AIScore | undefined;
     try {
       const res = await fetch("/api/presentation/analyze", {
@@ -239,10 +240,8 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
     }
   }, [sessionId, slides.length, stopAndTranscribe, onDone]);
 
-  // Keep refs in sync — useEffect closures capture stale function instances
+  // Keep ref in sync so nextSlide can call it without circular dependency
   endPresentationRef.current = endPresentation;
-  nextSlideRef.current = nextSlide;
-  prevSlideRef.current = prevSlide;
 
   useEffect(() => {
     // Timer for presentation
@@ -438,9 +437,6 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
         renderer.xr.addEventListener("sessionend", () => { exitBtn.visible = false; });
       }
 
-    // Gamepad state — declared here so setAnimationLoop (outside if block) can access it
-    const gamepadState: Record<string, Record<string, unknown>> = {};
-
     // Presentation slide screen
     if (mode === "presentation" && slides.length > 0) {
       const distance = 5;
@@ -485,7 +481,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
 
         const prevBtn = new THREE.Mesh(btnGeo, new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.85 }));
         prevBtn.position.set(-(slideW / 2 + 0.7), 3.3, -distance);
-        prevBtn.userData = { action: () => prevSlideRef.current() };
+        prevBtn.userData = { action: prevSlide };
         scene.add(prevBtn);
         const prevLabel = new THREE.Mesh(btnGeo, new THREE.MeshBasicMaterial({ map: makeLabel("‹"), transparent: true }));
         prevLabel.position.set(prevBtn.position.x, 3.3, -distance + 0.01);
@@ -493,7 +489,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
 
         const nextBtn = new THREE.Mesh(btnGeo, new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.85 }));
         nextBtn.position.set(slideW / 2 + 0.7, 3.3, -distance);
-        nextBtn.userData = { action: () => nextSlideRef.current() };
+        nextBtn.userData = { action: nextSlide };
         scene.add(nextBtn);
         const nextLabel = new THREE.Mesh(btnGeo, new THREE.MeshBasicMaterial({ map: makeLabel("›"), transparent: true }));
         nextLabel.position.set(nextBtn.position.x, 3.3, -distance + 0.01);
@@ -516,7 +512,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
         const endBtn = new THREE.Mesh(endBtnGeo, endBtnMat);
         // Offset End button left when HR is shown, keep centered otherwise
         endBtn.position.set(heartRateRef ? -0.5 : 0, 3.3 + slideH / 2 + 0.35, -distance);
-        endBtn.userData = { action: () => endPresentationRef.current() };
+        endBtn.userData = { action: endPresentation };
         scene.add(endBtn);
 
         // HR display next to End button
@@ -623,69 +619,69 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
         ctrl2.add(laser2);
       });
 
+      // Gamepad polling (uses stable callback refs, no dependency on slideW/slideH)
+      const gamepadState: Record<string, Record<string, unknown>> = {};
+      const pollGamepad = () => {
+        if (!renderer.xr.isPresenting) { requestAnimationFrame(pollGamepad); return; }
+        const session = renderer.xr.getSession();
+        if (!session) { requestAnimationFrame(pollGamepad); return; }
+        session.inputSources.forEach((src, i) => {
+          if (!src.gamepad) return;
+          const key = `c${i}`;
+          if (!gamepadState[key]) gamepadState[key] = {};
+          const state = gamepadState[key];
+          src.gamepad.buttons.forEach((btn, bi) => {
+            const wasPressed = !!state[`b${bi}`];
+            if (btn.pressed && !wasPressed) {
+              if (bi === 4) prevSlide();
+              else if (bi === 5) nextSlide();
+              else if (bi === 0) nextSlide();
+              else if (bi === 1) {
+                if (!state.gripStart) state.gripStart = Date.now();
+              }
+            }
+            if (bi === 1 && btn.pressed && state.gripStart) {
+              if (Date.now() - (state.gripStart as number) > 1000) {
+                endPresentation();
+                state.gripStart = null;
+              }
+            }
+            if (bi === 1 && !btn.pressed) state.gripStart = null;
+            state[`b${bi}`] = btn.pressed;
+          });
+        });
+        requestAnimationFrame(pollGamepad);
+      };
+      pollGamepad();
     }
 
     // Keyboard shortcuts
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight" || e.key === "b") nextSlideRef.current();
-      else if (e.key === "ArrowLeft" || e.key === "a") prevSlideRef.current();
-      else if (e.key === "Escape") { if (mode === "presentation") endPresentationRef.current(); else onExit(); }
+      if (e.key === "ArrowRight" || e.key === "b") nextSlide();
+      else if (e.key === "ArrowLeft" || e.key === "a") prevSlide();
+      else if (e.key === "Escape") { if (mode === "presentation") endPresentation(); else onExit(); }
     };
     window.addEventListener("keydown", onKey);
 
     // HR display — fn assigned inside loader callback
     const hrDisplay = { fn: null as (() => void) | null };
 
-    // Animation loop — runs in both normal and XR mode
+    // Animation loop — throttle HR canvas to once per second to avoid redraw overhead
     let lastHrUpdate = 0;
     renderer.setAnimationLoop((time: number) => {
       if (hrDisplay.fn && time - lastHrUpdate > 1000) {
         hrDisplay.fn();
         lastHrUpdate = time;
       }
-      // VideoTexture needsUpdate — only when video has data ready (readyState >= HAVE_CURRENT_DATA)
+      // VideoTexture requires manual needsUpdate each frame to decode & upload new video frames
       if (videoUrl) {
         scene.traverse((obj) => {
           const mesh = obj as import("three").Mesh;
           if (mesh.isMesh) {
             const mat = mesh.material as import("three").MeshBasicMaterial;
-            if (mat?.map instanceof THREE.VideoTexture) {
-              const vid = mat.map.image as HTMLVideoElement;
-              if (vid && vid.readyState >= 2) mat.map.needsUpdate = true;
-            }
+            if (mat?.map instanceof THREE.VideoTexture) mat.map.needsUpdate = true;
           }
         });
-      }
-      // Gamepad polling inside XR loop — requestAnimationFrame doesn't fire in XR
-      if (mode === "presentation" && renderer.xr.isPresenting) {
-        const session = renderer.xr.getSession();
-        if (session) {
-          session.inputSources.forEach((src, i) => {
-            if (!src.gamepad) return;
-            const key = `c${i}`;
-            if (!gamepadState[key]) gamepadState[key] = {};
-            const state = gamepadState[key];
-            src.gamepad.buttons.forEach((btn, bi) => {
-              const wasPressed = !!state[`b${bi}`];
-              if (btn.pressed && !wasPressed) {
-                if (bi === 4) prevSlideRef.current();
-                else if (bi === 5) nextSlideRef.current();
-                else if (bi === 0) nextSlideRef.current();
-                else if (bi === 1) {
-                  if (!state.gripStart) state.gripStart = Date.now();
-                }
-              }
-              if (bi === 1 && btn.pressed && state.gripStart) {
-                if (Date.now() - (state.gripStart as number) > 1000) {
-                  endPresentationRef.current();
-                  state.gripStart = null;
-                }
-              }
-              if (bi === 1 && !btn.pressed) state.gripStart = null;
-              state[`b${bi}`] = btn.pressed;
-            });
-          });
-        }
       }
       renderer.render(scene, camera);
     });
@@ -701,8 +697,6 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
     // Start audio recording for presentation
     if (mode === "presentation") {
       startTimeRef.current = Date.now();
-      // Record slide 0 as the starting slide so coverage count includes first slide
-      slideChangesRef.current = [{ slideNumber: 0, timestamp: 0 }];
       startAudioRecording();
     }
 
@@ -733,11 +727,9 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
 const enterVR = useCallback(async () => {
   if (!rendererRef.current || !navigator.xr) return;
   try {
-    const opts: XRSessionInit = {
-      optionalFeatures: ["local-floor", "bounded-floor", "dom-overlay"],
-    };
-    if (rootRef.current) (opts as any).domOverlay = { root: rootRef.current };
-    const session = await navigator.xr.requestSession("immersive-vr", opts);
+    const session = await navigator.xr.requestSession("immersive-vr", {
+      optionalFeatures: ["local-floor", "bounded-floor"],
+    });
     await rendererRef.current.xr.setSession(session);
   } catch (e) {
     console.warn("Failed to enter VR:", e);
@@ -747,7 +739,7 @@ const enterVR = useCallback(async () => {
 const timerDisplay = `${String(Math.floor(timer / 60)).padStart(2, "0")}:${String(timer % 60).padStart(2, "0")}`;
 
 return (
-  <div ref={rootRef} className="fixed inset-0 z-50 bg-black">
+  <div className="fixed inset-0 z-50 bg-black">
     {/* Three.js canvas container */}
     <div ref={containerRef} className="w-full h-full" />
 
@@ -755,7 +747,7 @@ return (
     <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-4 pointer-events-none">
       <div className="pointer-events-auto">
         <button
-          onClick={() => (mode === "presentation" ? endPresentationRef.current() : onExit())}
+          onClick={() => (mode === "presentation" ? endPresentation() : onExit())}
           className="flex items-center bg-black/60 hover:bg-black/80 text-white font-medium p-2 rounded-lg transition-colors backdrop-blur-sm border border-white/10"
         >
           <X size={15} />
