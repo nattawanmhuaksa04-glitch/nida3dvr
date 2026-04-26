@@ -508,7 +508,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
         const endBtn = new THREE.Mesh(endBtnGeo, endBtnMat);
         // Offset End button left when HR is shown, keep centered otherwise
         endBtn.position.set(heartRateRef ? -0.5 : 0, 3.3 + slideH / 2 + 0.35, -distance);
-        endBtn.userData = { action: endPresentation };
+        endBtn.userData = { action: () => endPresentationRef.current() };
         scene.add(endBtn);
 
         // HR display next to End button
@@ -638,7 +638,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
             }
             if (bi === 1 && btn.pressed && state.gripStart) {
               if (Date.now() - (state.gripStart as number) > 1000) {
-                endPresentation();
+                endPresentationRef.current();
                 state.gripStart = null;
               }
             }
@@ -655,7 +655,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight" || e.key === "b") nextSlide();
       else if (e.key === "ArrowLeft" || e.key === "a") prevSlide();
-      else if (e.key === "Escape") { if (mode === "presentation") endPresentation(); else onExit(); }
+      else if (e.key === "Escape") { if (mode === "presentation") endPresentationRef.current(); else onExit(); }
     };
     window.addEventListener("keydown", onKey);
 
@@ -750,7 +750,7 @@ return (
     <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-4 pointer-events-none">
       <div className="pointer-events-auto">
         <button
-          onClick={() => (mode === "presentation" ? endPresentation() : onExit())}
+          onClick={() => (mode === "presentation" ? endPresentationRef.current() : onExit())}
           className="flex items-center bg-black/60 hover:bg-black/80 text-white font-medium p-2 rounded-lg transition-colors backdrop-blur-sm border border-white/10"
         >
           <X size={15} />
