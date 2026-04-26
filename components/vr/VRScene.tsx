@@ -48,6 +48,8 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
   const startTimeRef = useRef<number>(Date.now());
   const isEndingRef = useRef(false);
   const endPresentationRef = useRef<() => void>(() => { });
+  const nextSlideRef = useRef<() => void>(() => { });
+  const prevSlideRef = useRef<() => void>(() => { });
   const slideChangesRef = useRef<{ slideNumber: number; timestamp: number }[]>([]);
 
   // Chunked transcription — background transcribe every CHUNK_MS
@@ -236,8 +238,10 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
     }
   }, [sessionId, slides.length, stopAndTranscribe, onDone]);
 
-  // Keep ref in sync so nextSlide can call it without circular dependency
+  // Keep refs in sync — useEffect closures capture stale function instances
   endPresentationRef.current = endPresentation;
+  nextSlideRef.current = nextSlide;
+  prevSlideRef.current = prevSlide;
 
   useEffect(() => {
     // Timer for presentation
@@ -477,7 +481,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
 
         const prevBtn = new THREE.Mesh(btnGeo, new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.85 }));
         prevBtn.position.set(-(slideW / 2 + 0.7), 3.3, -distance);
-        prevBtn.userData = { action: prevSlide };
+        prevBtn.userData = { action: () => prevSlideRef.current() };
         scene.add(prevBtn);
         const prevLabel = new THREE.Mesh(btnGeo, new THREE.MeshBasicMaterial({ map: makeLabel("‹"), transparent: true }));
         prevLabel.position.set(prevBtn.position.x, 3.3, -distance + 0.01);
@@ -485,7 +489,7 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
 
         const nextBtn = new THREE.Mesh(btnGeo, new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.85 }));
         nextBtn.position.set(slideW / 2 + 0.7, 3.3, -distance);
-        nextBtn.userData = { action: nextSlide };
+        nextBtn.userData = { action: () => nextSlideRef.current() };
         scene.add(nextBtn);
         const nextLabel = new THREE.Mesh(btnGeo, new THREE.MeshBasicMaterial({ map: makeLabel("›"), transparent: true }));
         nextLabel.position.set(nextBtn.position.x, 3.3, -distance + 0.01);
@@ -629,9 +633,9 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
           src.gamepad.buttons.forEach((btn, bi) => {
             const wasPressed = !!state[`b${bi}`];
             if (btn.pressed && !wasPressed) {
-              if (bi === 4) prevSlide();
-              else if (bi === 5) nextSlide();
-              else if (bi === 0) nextSlide();
+              if (bi === 4) prevSlideRef.current();
+              else if (bi === 5) nextSlideRef.current();
+              else if (bi === 0) nextSlideRef.current();
               else if (bi === 1) {
                 if (!state.gripStart) state.gripStart = Date.now();
               }
@@ -653,8 +657,8 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
 
     // Keyboard shortcuts
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight" || e.key === "b") nextSlide();
-      else if (e.key === "ArrowLeft" || e.key === "a") prevSlide();
+      if (e.key === "ArrowRight" || e.key === "b") nextSlideRef.current();
+      else if (e.key === "ArrowLeft" || e.key === "a") prevSlideRef.current();
       else if (e.key === "Escape") { if (mode === "presentation") endPresentationRef.current(); else onExit(); }
     };
     window.addEventListener("keydown", onKey);
