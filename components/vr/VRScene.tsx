@@ -150,7 +150,6 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
       const recorder = new MediaRecorder(stream, { mimeType });
       audioChunksRef.current = [];
       pendingTranscriptsRef.current = [];
-      slideChangesRef.current = [];
       recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
       recorder.start(1000);
       mediaRecorderRef.current = recorder;
@@ -673,13 +672,16 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
         hrDisplay.fn();
         lastHrUpdate = time;
       }
-      // VideoTexture requires manual needsUpdate each frame to decode & upload new video frames
+      // VideoTexture needsUpdate — only when video has data ready (readyState >= HAVE_CURRENT_DATA)
       if (videoUrl) {
         scene.traverse((obj) => {
           const mesh = obj as import("three").Mesh;
           if (mesh.isMesh) {
             const mat = mesh.material as import("three").MeshBasicMaterial;
-            if (mat?.map instanceof THREE.VideoTexture) mat.map.needsUpdate = true;
+            if (mat?.map instanceof THREE.VideoTexture) {
+              const vid = mat.map.image as HTMLVideoElement;
+              if (vid && vid.readyState >= 2) mat.map.needsUpdate = true;
+            }
           }
         });
       }
@@ -697,6 +699,8 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
     // Start audio recording for presentation
     if (mode === "presentation") {
       startTimeRef.current = Date.now();
+      // Record slide 0 as the starting slide so coverage count includes first slide
+      slideChangesRef.current = [{ slideNumber: 0, timestamp: 0 }];
       startAudioRecording();
     }
 
