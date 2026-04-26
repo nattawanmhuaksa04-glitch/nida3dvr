@@ -22,6 +22,7 @@ function proxySlide(url: string) {
 
 export default function VRScene({ mode, videoUrl, slides = [], sessionId, title = "", heartRateRef, onExit, onDone }: VRSceneProps) {
   slides = slides.map(proxySlide);
+  const rootRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rendererRef = useRef<any>(null);
@@ -197,17 +198,11 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
     if (isEndingRef.current) return;
     isEndingRef.current = true;
 
-    // Exit VR session first so HTML overlay is visible
-    try {
-      await rendererRef.current?.xr.getSession()?.end();
-    } catch { }
-
     setAnalyzing(true);
     const duration = Math.floor((Date.now() - startTimeRef.current) / 1000);
 
     const transcript = await stopAndTranscribe();
 
-    // Call Gemini analyze
     let score: AIScore | undefined;
     try {
       const res = await fetch("/api/presentation/analyze", {
@@ -229,8 +224,11 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
 
     setAnalyzing(false);
     if (score) {
+      // Exit VR now so dom-overlay ScoreReport is fully interactive
+      try { await rendererRef.current?.xr.getSession()?.end(); } catch { }
       setScoreOverlay({ score, duration });
     } else {
+      try { await rendererRef.current?.xr.getSession()?.end(); } catch { }
       if (rendererRef.current) {
         rendererRef.current.setAnimationLoop(null);
         rendererRef.current.dispose();
@@ -731,9 +729,11 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
 const enterVR = useCallback(async () => {
   if (!rendererRef.current || !navigator.xr) return;
   try {
-    const session = await navigator.xr.requestSession("immersive-vr", {
-      optionalFeatures: ["local-floor", "bounded-floor"],
-    });
+    const opts: XRSessionInit = {
+      optionalFeatures: ["local-floor", "bounded-floor", "dom-overlay"],
+    };
+    if (rootRef.current) (opts as any).domOverlay = { root: rootRef.current };
+    const session = await navigator.xr.requestSession("immersive-vr", opts);
     await rendererRef.current.xr.setSession(session);
   } catch (e) {
     console.warn("Failed to enter VR:", e);
@@ -743,7 +743,7 @@ const enterVR = useCallback(async () => {
 const timerDisplay = `${String(Math.floor(timer / 60)).padStart(2, "0")}:${String(timer % 60).padStart(2, "0")}`;
 
 return (
-  <div className="fixed inset-0 z-50 bg-black">
+  <div ref={rootRef} className="fixed inset-0 z-50 bg-black">
     {/* Three.js canvas container */}
     <div ref={containerRef} className="w-full h-full" />
 
