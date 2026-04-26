@@ -200,6 +200,9 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
     if (isEndingRef.current) return;
     isEndingRef.current = true;
 
+    // Exit VR first so browser UI is visible during analysis
+    try { await rendererRef.current?.xr.getSession()?.end(); } catch { }
+
     setAnalyzing(true);
     const duration = Math.floor((Date.now() - startTimeRef.current) / 1000);
 
@@ -228,8 +231,6 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
     if (score) {
       setScoreOverlay({ score, duration });
     } else {
-      // No score — exit VR and go back
-      try { await rendererRef.current?.xr.getSession()?.end(); } catch { }
       if (rendererRef.current) {
         rendererRef.current.setAnimationLoop(null);
         rendererRef.current.dispose();
@@ -822,8 +823,7 @@ return (
             slideCount={slides.length}
           />
           <button
-            onClick={async () => {
-              try { await rendererRef.current?.xr.getSession()?.end(); } catch { }
+            onClick={() => {
               if (rendererRef.current) {
                 rendererRef.current.setAnimationLoop(null);
                 rendererRef.current.dispose();
