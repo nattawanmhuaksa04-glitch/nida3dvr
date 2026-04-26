@@ -224,10 +224,9 @@ export default function VRScene({ mode, videoUrl, slides = [], sessionId, title 
 
     setAnalyzing(false);
     if (score) {
-      // Exit VR now so dom-overlay ScoreReport is fully interactive
-      try { await rendererRef.current?.xr.getSession()?.end(); } catch { }
       setScoreOverlay({ score, duration });
     } else {
+      // No score — exit VR and go back
       try { await rendererRef.current?.xr.getSession()?.end(); } catch { }
       if (rendererRef.current) {
         rendererRef.current.setAnimationLoop(null);
@@ -819,7 +818,8 @@ return (
             slideCount={slides.length}
           />
           <button
-            onClick={() => {
+            onClick={async () => {
+              try { await rendererRef.current?.xr.getSession()?.end(); } catch { }
               if (rendererRef.current) {
                 rendererRef.current.setAnimationLoop(null);
                 rendererRef.current.dispose();
